@@ -42,7 +42,7 @@ The repository supports multiple versions of the A2UI protocol:
 
 - **`specification/`**: Versioned subdirectories (`v0_8/`, `v0_9/`, `v0_9_1/`, `v1_0/`) containing JSON schemas, component/function catalogs, and human-readable guides. The `specification/<version>/docs/a2ui_protocol.md` file is the most important source of truth for each protocol version, and the `specification/<version>/json` directory contains the associated schemas for the protocol.
 - **`agent_sdks/`**: Server integration SDKs for Python (`python/`), Kotlin (`kotlin/`), and core conformance tests (`conformance/`).
-- **`renderers/`**: Shared core state logic (`web_core/`), Lit renderer (`lit/`), Angular renderer (`angular/`), React renderer (`react/`), markdown parser (`markdown/`), and placeholder for Flutter (`flutter/`).
+- **`renderers/`**: Shared core state logic (`web_core/`), Lit renderer (`lit/`), Angular renderer (`angular/`), React renderer (`react/`), markdown parser (`markdown/`), Swift core engine & JSON infrastructure (`swift_core/`), and placeholder for Flutter (`flutter/`).
 - **`samples/`**: Ready-to-run demo agents utilizing Python ADK (`agent/adk/`), MCP server (`agent/mcp/`), and sample clients (`client/lit/`, `client/angular/`, `client/react/`, `client/flutter/`).
 - **`tools/`**: Developer utility suite including visual Editor (`editor/`), visual Composer (`composer/`), payload Inspector (`inspector/`), and catalog builder (`build_catalog/`).
 
@@ -69,6 +69,12 @@ Do not use hardcoded or guessed build/run sequences. Each subdirectory contains 
 
 - **Prerequisite:** Consult the `README.md` under `renderers/` to build shared web core and renderer packages before running any web tools or clients.
 - **Running SDKs & Samples:** Consult the local `README.md` inside any targeted directory under `agent_sdks/`, `samples/`, or `tools/` for specific run/test/build commands.
+
+- **Swift Core:** The Swift core library (`renderers/swift_core/`) is a Swift Package managed via Swift Package Manager (SPM). The package definition (`Package.swift`) is located in the repository root.
+  - **Testing:** You can run the Swift tests by executing `swift test` from the repository root.
+  - **Formatting & Linting:** Swift formatting is integrated into the central formatting script.
+    - To format all files (including Swift): `./scripts/fix_format.sh`
+    - To check formatting (CI mode): `./scripts/fix_format.sh --check`
 
 ---
 
