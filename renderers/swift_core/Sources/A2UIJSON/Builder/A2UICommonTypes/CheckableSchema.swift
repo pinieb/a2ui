@@ -12,3 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import Foundation
+
+extension A2UICommonSchema {
+  public static let checkable = ExternalSchemaStub(
+    uri: A2UICommonSchema.uri(for: "CheckableSchema"),
+    localSchema: SchemaObject {
+      SchemaProperty(
+        name: "checks",
+        type: SchemaArray(items: SchemaReference(A2UICommonSchema.checkRule))
+      )
+    }
+  )
+}

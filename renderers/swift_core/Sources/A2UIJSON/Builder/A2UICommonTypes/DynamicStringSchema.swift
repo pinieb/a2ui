@@ -12,3 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import Foundation
+
+extension A2UICommonSchema {
+  public static let dynamicString = ExternalSchemaStub(
+    uri: A2UICommonSchema.uri(for: "DynamicStringSchema"),
+    localSchema: SchemaAnyOf([
+      SchemaString(),
+      SchemaReference(A2UICommonSchema.dataBinding),
+      SchemaAllOf([
+        SchemaReference(A2UICommonSchema.functionCall),
+        SchemaObject(omitType: true) {
+          SchemaProperty(name: "returnType", type: SchemaConst("string"))
+        },
+      ]),
+    ])
+  )
+}
