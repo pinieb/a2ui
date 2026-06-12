@@ -71,7 +71,7 @@ Do not use hardcoded or guessed build/run sequences. Each subdirectory contains 
 - **Running SDKs & Samples:** Consult the local `README.md` inside any targeted directory under `agent_sdks/`, `samples/`, or `tools/` for specific run/test/build commands.
 
 - **Swift Core:** The Swift core library (`renderers/swift_core/`) is a Swift Package managed via Swift Package Manager (SPM). The package definition (`Package.swift`) is located in the repository root.
-  - **Testing:** You can run the Swift tests by executing `swift test` from the repository root.
+  - **Testing:** You can run the Swift tests using the local test runner script [run_tests.sh](file:///Users/piebie/Documents/GitHub/a2ui/renderers/swift_core/run_tests.sh) situated in the `renderers/swift_core/` directory. For details, consult the local [AGENTS.md](file:///Users/piebie/Documents/GitHub/a2ui/renderers/swift_core/AGENTS.md).
   - **Formatting & Linting:** Swift formatting is integrated into the central formatting script.
     - To format all files (including Swift): `./scripts/fix_format.sh`
     - To check formatting (CI mode): `./scripts/fix_format.sh --check`
