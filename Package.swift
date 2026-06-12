@@ -20,39 +20,23 @@ import PackageDescription
 let package = Package(
     name: "A2UISwiftCore",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
-        .tvOS(.v16),
-        .watchOS(.v9)
+        .iOS(.v16)
     ],
     products: [
         .library(
             name: "A2UISwiftCore",
-            targets: ["A2UISwiftCore"]
-        ),
-        .library(
-            name: "A2UISchema",
-            targets: ["A2UISchema"]
+            targets: ["A2UIJSON"]
         ),
     ],
     targets: [
         .target(
-            name: "A2UISwiftCore",
-            path: "renderers/swift_core/src"
+            name: "A2UIJSON",
+            path: "renderers/swift_core/Sources/A2UIJSON"
         ),
         .testTarget(
-            name: "A2UISwiftCoreTests",
-            dependencies: ["A2UISwiftCore"],
-            path: "renderers/swift_core/test"
-        ),
-        .target(
-            name: "A2UISchema",
-            path: "renderers/swift_core/Sources/A2UISchema"
-        ),
-        .testTarget(
-            name: "A2UISchemaTests",
-            dependencies: ["A2UISchema"],
-            path: "renderers/swift_core/Tests/A2UISchemaTests"
+            name: "A2UIJSONTests",
+            dependencies: ["A2UIJSON"],
+            path: "renderers/swift_core/Tests/A2UIJSONTests"
         ),
     ]
 )
