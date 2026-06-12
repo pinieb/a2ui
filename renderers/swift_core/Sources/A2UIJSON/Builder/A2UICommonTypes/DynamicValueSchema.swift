@@ -15,15 +15,19 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let dynamicValue = ExternalSchemaStub(
+  public static let dynamicValue: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "DynamicValueSchema"),
-    localSchema: SchemaAnyOf([
-      SchemaString(),
-      SchemaNumber(),
-      SchemaBoolean(),
-      SchemaArray(),
-      SchemaReference(A2UICommonSchema.dataBinding),
-      SchemaReference(A2UICommonSchema.functionCall),
-    ])
+    localSchema: JSONSchema.anyOf {
+      JSONSchema.string()
+      JSONSchema.number()
+      JSONSchema.boolean()
+      JSONSchema.array()
+      JSONSchema.reference(A2UICommonSchema.dataBinding)
+      JSONSchema.reference(A2UICommonSchema.functionCall)
+    }
   )
 }
+
+
+
+

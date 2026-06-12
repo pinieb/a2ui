@@ -51,7 +51,7 @@ if [ -f "$REPO_ROOT/renderers/swift_core/.venv/bin/bowtie" ]; then
 fi
 
 # Run Bowtie against our native Linux image, saving the raw report
-$BOWTIE_BIN suite -i localhost/a2ui-json-bowtie-swift-harness draft7 > "$SCRIPT_DIR/report.jsonl"
+$BOWTIE_BIN suite -i localhost/a2ui-json-bowtie-swift-harness draft2020-12 > "$SCRIPT_DIR/report.jsonl"
 
 # Generate and print a beautiful markdown summary table
 $BOWTIE_BIN summary --format markdown "$SCRIPT_DIR/report.jsonl"

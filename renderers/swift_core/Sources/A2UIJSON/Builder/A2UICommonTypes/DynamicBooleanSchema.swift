@@ -15,17 +15,16 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let dynamicBoolean = ExternalSchemaStub(
+  public static let dynamicBoolean: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "DynamicBooleanSchema"),
-    localSchema: SchemaAnyOf([
-      SchemaBoolean(),
-      SchemaReference(A2UICommonSchema.dataBinding),
-      SchemaAllOf([
-        SchemaReference(A2UICommonSchema.functionCall),
-        SchemaObject(omitType: true) {
-          SchemaProperty(name: "returnType", type: SchemaConst("boolean"))
-        },
-      ]),
-    ])
+    localSchema: JSONSchema.anyOf {
+      JSONSchema.boolean()
+      JSONSchema.reference(A2UICommonSchema.dataBinding)
+      JSONSchema.reference(A2UICommonSchema.functionCall)
+    }
   )
 }
+
+
+
+

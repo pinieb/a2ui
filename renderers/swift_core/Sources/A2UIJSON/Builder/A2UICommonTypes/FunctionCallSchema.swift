@@ -15,94 +15,23 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let functionCall = ExternalSchemaStub(
+  public static let functionCall: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "FunctionCallSchema"),
-    localSchema: SchemaObject {
-      SchemaProperty(name: "call", type: SchemaString(), isRequired: true)
-      SchemaProperty(name: "args", type: SchemaFunctionCallArgs())
-      SchemaProperty(name: "returnType", type: SchemaString())
+    localSchema: JSONSchema.object {
+      JSONSchemaProperty.property("call", isRequired: true) { JSONSchema.string() }
+      JSONSchemaProperty.property("args") {
+        JSONSchema.object(
+          additionalProperties: JSONSchema.anyOf {
+            JSONSchema.reference(A2UICommonSchema.dynamicValue)
+            JSONSchema.object()
+          }
+        )
+      }
+      JSONSchemaProperty.property("returnType") { JSONSchema.string() }
     }
   )
 }
 
-public struct SchemaFunctionCallArgs: SchemaType {
-  public init() {}
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode("object", forKey: .type)
 
-    var addPropsContainer = container.nestedContainer(
-      keyedBy: AdditionalPropertiesCodingKeys.self,
-      forKey: .additionalProperties
-    )
 
-    let subschemas: [any SchemaType] = [
-      SchemaReference(A2UICommonSchema.dynamicValue),
-      GenericObjectSchema(),
-    ]
-    try addPropsContainer.encode(
-      subschemas.map { AnyEncodable($0) },
-      forKey: .anyOf
-    )
-  }
-
-  public func validate(instance: JSONValue) throws -> ValidationOutput {
-    guard case .object(let dict) = instance else {
-      throw ValidationError(
-        path: "/",
-        message: "Expected object for args, got \(instance.typeName)"
-      )
-    }
-
-    var validatedChildren: [String: ValidationOutput] = [:]
-    for (key, val) in dict {
-      do {
-        let out = try A2UICommonSchema.dynamicValue.validate(instance: val)
-        validatedChildren[key] = out
-      } catch {
-        do {
-          let out = try GenericObjectSchema().validate(instance: val)
-          validatedChildren[key] = out
-        } catch {
-          throw ValidationError(
-            path: "/\(key)",
-            message: "Value does not match DynamicValue or object"
-          )
-        }
-      }
-    }
-
-    return ValidationOutput(instance: instance, children: validatedChildren)
-  }
-
-  private enum CodingKeys: String, CodingKey {
-    case type
-    case additionalProperties
-  }
-
-  private enum AdditionalPropertiesCodingKeys: String, CodingKey {
-    case anyOf
-  }
-}
-
-struct GenericObjectSchema: SchemaType {
-  func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode("object", forKey: .type)
-  }
-
-  func validate(instance: JSONValue) throws -> ValidationOutput {
-    guard case .object = instance else {
-      throw ValidationError(
-        path: "/",
-        message: "Expected object, got \(instance.typeName)"
-      )
-    }
-    return ValidationOutput(instance: instance)
-  }
-
-  private enum CodingKeys: String, CodingKey {
-    case type
-  }
-}

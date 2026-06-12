@@ -129,13 +129,13 @@ struct BowtieHarness {
               homepage: "https://github.com/pinieb/a2ui",
               issues: "https://github.com/pinieb/a2ui/issues",
               source: "https://github.com/pinieb/a2ui",
-              dialects: ["http://json-schema.org/draft-07/schema#"]
+              dialects: ["https://json-schema.org/draft/2020-12/schema"]
             )
           )
           sendResponse(response, encoder: encoder)
           
         case "dialect":
-          let isSupported = request.dialect == "http://json-schema.org/draft-07/schema#"
+          let isSupported = request.dialect == "https://json-schema.org/draft/2020-12/schema"
           let response = DialectResponse(ok: isSupported)
           sendResponse(response, encoder: encoder)
           

@@ -15,74 +15,28 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let action = ExternalSchemaStub(
-    uri: A2UICommonSchema.uri(for: "ActionSchema"),
-    localSchema: SchemaAnyOf([
-      SchemaObject(additionalProperties: false) {
-        SchemaProperty(
-          name: "event",
-          type: SchemaObject(additionalProperties: false) {
-            SchemaProperty(
-              name: "name",
-              type: SchemaString(),
-              isRequired: true
+  public static let action: JSONSchema = JSONSchema.anyOf {
+    JSONSchema.object {
+      JSONSchemaProperty.property("event", isRequired: true) {
+        JSONSchema.object {
+          JSONSchemaProperty.property("name", isRequired: true) { JSONSchema.string() }
+          JSONSchemaProperty.property("context") {
+            JSONSchema.object(
+              additionalProperties: JSONSchema.reference(A2UICommonSchema.dynamicValue)
             )
-            SchemaProperty(name: "context", type: SchemaActionContext())
-          },
-          isRequired: true
-        )
-      },
-      SchemaObject(additionalProperties: false) {
-        SchemaProperty(
-          name: "functionCall",
-          type: SchemaReference(A2UICommonSchema.functionCall),
-          isRequired: true
-        )
-      },
-    ])
-  )
-}
-
-public struct SchemaActionContext: SchemaType {
-  public init() {}
-
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode("object", forKey: .type)
-
-    try container.encode(
-      SchemaReference(A2UICommonSchema.dynamicValue),
-      forKey: .additionalProperties
-    )
-  }
-
-  public func validate(instance: JSONValue) throws -> ValidationOutput {
-    guard case .object(let dict) = instance else {
-      throw ValidationError(
-        path: "/",
-        message: "Expected object for context, got \(instance.typeName)"
-      )
-    }
-
-    var validatedChildren: [String: ValidationOutput] = [:]
-    for (key, val) in dict {
-      do {
-        let out = try A2UICommonSchema.dynamicValue.validate(instance: val)
-        validatedChildren[key] = out
-      } catch let error as ValidationError {
-        let prependedPath =
-          error.path == "/"
-          ? "/\(key)"
-          : "/\(key)\(error.path)"
-        throw ValidationError(path: prependedPath, message: error.message)
+          }
+        }
       }
     }
-
-    return ValidationOutput(instance: instance, children: validatedChildren)
-  }
-
-  private enum CodingKeys: String, CodingKey {
-    case type
-    case additionalProperties
+    JSONSchema.object {
+      JSONSchemaProperty.property("functionCall", isRequired: true) {
+        JSONSchema.reference(A2UICommonSchema.functionCall)
+      }
+    }
   }
 }
+
+
+
+
+// Note: We intentionally don't wrap this schema in a stub(uri:...) to preserve the historical flat array/object shape representation.

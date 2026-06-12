@@ -15,19 +15,13 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let checkRule = ExternalSchemaStub(
+  public static let checkRule: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "CheckRuleSchema"),
-    localSchema: SchemaObject(additionalProperties: false) {
-      SchemaProperty(
-        name: "condition",
-        type: SchemaReference(A2UICommonSchema.dynamicBoolean),
-        isRequired: true
-      )
-      SchemaProperty(
-        name: "message",
-        type: SchemaString(),
-        isRequired: true
-      )
+    localSchema: JSONSchema.object {
+      JSONSchemaProperty.property("condition", isRequired: true) {
+        JSONSchema.reference(A2UICommonSchema.dynamicBoolean)
+      }
+      JSONSchemaProperty.property("message", isRequired: true) { JSONSchema.string() }
     }
   )
 }

@@ -15,18 +15,11 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let componentCommon = ExternalSchemaStub(
+  public static let componentCommon: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "ComponentCommonSchema"),
-    localSchema: SchemaObject {
-      SchemaProperty(
-        name: "id",
-        type: SchemaReference(A2UICommonSchema.componentID),
-        isRequired: true
-      )
-      SchemaProperty(
-        name: "accessibility",
-        type: SchemaReference(A2UICommonSchema.accessibilityAttributes)
-      )
+    localSchema: JSONSchema.object {
+      JSONSchemaProperty.property("id", isRequired: true) { JSONSchema.reference(A2UICommonSchema.componentID) }
+      JSONSchemaProperty.property("accessibility") { JSONSchema.reference(A2UICommonSchema.accessibilityAttributes) }
     }
   )
 }

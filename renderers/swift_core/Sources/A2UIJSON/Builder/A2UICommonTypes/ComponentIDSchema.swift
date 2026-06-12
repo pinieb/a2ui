@@ -15,8 +15,8 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let componentID = ExternalSchemaStub(
+  public static let componentID: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "ComponentIDSchema"),
-    localSchema: SchemaString()
+    localSchema: JSONSchema.string()
   )
 }

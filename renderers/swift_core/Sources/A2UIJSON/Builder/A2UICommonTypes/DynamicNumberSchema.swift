@@ -15,17 +15,16 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let dynamicNumber = ExternalSchemaStub(
+  public static let dynamicNumber: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "DynamicNumberSchema"),
-    localSchema: SchemaAnyOf([
-      SchemaNumber(),
-      SchemaReference(A2UICommonSchema.dataBinding),
-      SchemaAllOf([
-        SchemaReference(A2UICommonSchema.functionCall),
-        SchemaObject(omitType: true) {
-          SchemaProperty(name: "returnType", type: SchemaConst("number"))
-        },
-      ]),
-    ])
+    localSchema: JSONSchema.anyOf {
+      JSONSchema.number()
+      JSONSchema.reference(A2UICommonSchema.dataBinding)
+      JSONSchema.reference(A2UICommonSchema.functionCall)
+    }
   )
 }
+
+
+
+

@@ -15,17 +15,16 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let dynamicStringList = ExternalSchemaStub(
+  public static let dynamicStringList: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "DynamicStringListSchema"),
-    localSchema: SchemaAnyOf([
-      SchemaArray(items: SchemaString()),
-      SchemaReference(A2UICommonSchema.dataBinding),
-      SchemaAllOf([
-        SchemaReference(A2UICommonSchema.functionCall),
-        SchemaObject(omitType: true) {
-          SchemaProperty(name: "returnType", type: SchemaConst("array"))
-        },
-      ]),
-    ])
+    localSchema: JSONSchema.anyOf {
+      JSONSchema.array { JSONSchema.string() }
+      JSONSchema.reference(A2UICommonSchema.dataBinding)
+      JSONSchema.reference(A2UICommonSchema.functionCall)
+    }
   )
 }
+
+
+
+

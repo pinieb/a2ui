@@ -15,13 +15,14 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let checkable = ExternalSchemaStub(
+  public static let checkable: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "CheckableSchema"),
-    localSchema: SchemaObject {
-      SchemaProperty(
-        name: "checks",
-        type: SchemaArray(items: SchemaReference(A2UICommonSchema.checkRule))
-      )
+    localSchema: JSONSchema.object {
+      JSONSchemaProperty.property("checks") {
+        JSONSchema.array {
+          JSONSchema.reference(A2UICommonSchema.checkRule)
+        }
+      }
     }
   )
 }

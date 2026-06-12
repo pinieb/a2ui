@@ -72,4 +72,18 @@ public enum JSONValue: Codable, Sendable, Equatable {
     case .object: return "object"
     }
   }
+
+  public static func == (lhs: JSONValue, rhs: JSONValue) -> Bool {
+    switch (lhs, rhs) {
+    case (.null, .null): return true
+    case (.boolean(let l), .boolean(let r)): return l == r
+    case (.number(let l), .number(let r)): return l == r
+    case (.string(let l), .string(let r)):
+      return l.utf8.elementsEqual(r.utf8)
+    case (.array(let l), .array(let r)): return l == r
+    case (.object(let l), .object(let r)): return l == r
+    default: return false
+    }
+  }
 }
+

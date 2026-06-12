@@ -15,10 +15,12 @@
 import Foundation
 
 extension A2UICommonSchema {
-  public static let dataBinding = ExternalSchemaStub(
+  public static let dataBinding: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "DataBindingSchema"),
-    localSchema: SchemaObject(additionalProperties: false) {
-      SchemaProperty(name: "path", type: SchemaString(), isRequired: true)
+    localSchema: JSONSchema.object(
+      additionalProperties: JSONSchema(booleanSchema: false)
+    ) {
+      JSONSchemaProperty.property("path", isRequired: true) { JSONSchema.string() }
     }
   )
 }

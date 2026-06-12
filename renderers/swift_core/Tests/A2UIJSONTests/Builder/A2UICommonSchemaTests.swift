@@ -16,11 +16,12 @@ import A2UIJSON
 import Foundation
 import Testing
 
+@Suite(.serialized)
 struct A2UICommonSchemaTests {
 
   @Test
   func `A2UICommonSchema compiles and serializes without errors`() throws {
-    let schemas: [any SchemaType] = [
+    let schemas = [
       A2UICommonSchema.componentID,
       A2UICommonSchema.accessibilityAttributes,
       A2UICommonSchema.componentCommon,
@@ -38,8 +39,8 @@ struct A2UICommonSchemaTests {
     ]
 
     for schema in schemas {
-      let wrapper = SchemaObject {
-        SchemaProperty(name: "root", type: schema)
+      let wrapper = JSONSchema.object {
+        JSONSchemaProperty.property("root") { schema }
       }
       let printed = try wrapper.print(
         bundleExternalRefs: false,
@@ -54,11 +55,10 @@ struct A2UICommonSchemaTests {
   func `Transitive bundling resolves and encodes deep reference chains`()
     throws
   {
-    let schema = SchemaObject {
-      SchemaProperty(
-        name: "common",
-        type: SchemaReference(A2UICommonSchema.componentCommon)
-      )
+    let schema = JSONSchema.object {
+      JSONSchemaProperty.property("common") {
+        JSONSchema.reference(A2UICommonSchema.componentCommon)
+      }
     }
 
     let jsonString = try schema.print(
@@ -138,7 +138,8 @@ struct A2UICommonSchemaTests {
         + "                \"returnType\" : {\n"
         + "                  \"const\" : \"string\"\n"
         + "                }\n"
-        + "              }\n"
+        + "              },\n"
+        + "              \"type\" : \"object\"\n"
         + "            }\n"
         + "          ]\n"
         + "        }\n"
@@ -209,6 +210,7 @@ struct A2UICommonSchemaTests {
     #expect(jsonString == expected)
   }
 
+
   @Test
   func `DynamicStringSchema validates literal strings and data bindings`()
     throws
@@ -225,7 +227,7 @@ struct A2UICommonSchemaTests {
     } catch let error as ValidationError {
       #expect(error.path == "/")
       #expect(
-        error.message.contains("string") || error.message.contains("binding")
+        error.message.contains("Expected type") || error.message.contains("match")
       )
     } catch {
       Issue.record("Expected ValidationError but got \(error)")

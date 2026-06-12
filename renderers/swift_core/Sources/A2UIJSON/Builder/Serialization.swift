@@ -13,201 +13,331 @@
 // limitations under the License.
 
 import Foundation
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-import os
-#endif
 
-public enum SchemaSorting: Sendable {
-  /// No sorting guarantees (uses default Swift dictionary hashing order).
+public enum SerializationSorting {
   case none
-
-  /// Keys are sorted alphabetically (guarantees a deterministic output).
   case alphabetical
 }
 
-public enum SchemaError: Error, Sendable {
-  case serializationFailed(String)
+extension JSONSchema {
+  /// Bundles and serializes the schema to a JSON string.
+  public func print(
+    bundleExternalRefs: Bool = true,
+    sorting: SerializationSorting = .none,
+    prettyPrinted: Bool = false
+  ) throws -> String {
+    let encoder = JSONEncoder()
+    if prettyPrinted {
+      encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    } else {
+      encoder.outputFormatting = [.sortedKeys]
+    }
+
+    if !bundleExternalRefs {
+      let data = try encoder.encode(self)
+      let rawString = String(decoding: data, as: UTF8.self)
+      if sorting == .alphabetical {
+        return try sortJSONKeysAlphabetically(rawString, prettyPrinted: prettyPrinted)
+      }
+      return rawString
+    }
+
+    // Bundle references
+    let tracker = ReferenceTracker()
+    let transformed = try tracker.transformAndRegister(self)
+
+    let topLevel = TopLevelSchema(
+      defs: tracker.definitions.isEmpty ? nil : tracker.definitions,
+      schema: transformed
+    )
+    let data = try encoder.encode(topLevel)
+    let rawString = String(decoding: data, as: UTF8.self)
+    if sorting == .alphabetical {
+      return try sortJSONKeysAlphabetically(rawString, prettyPrinted: prettyPrinted)
+    }
+    return rawString
+  }
 }
 
-extension CodingUserInfoKey {
-  public static let referenceTracker = CodingUserInfoKey(
-    rawValue: "dev.a2ui.referenceTracker"
-  )!
-}
+// MARK: - ReferenceTracker
 
-public final class ReferenceTracker: @unchecked Sendable {
-  public let bundleExternalRefs: Bool
+private final class ReferenceTracker {
+  private(set) var definitions: [String: JSONSchema] = [:]
+  private var uriToName: [String: String] = [:]
+  private var visiting: Set<String> = []
 
-  private struct State {
-    var registeredStubs: [String: ExternalSchemaStub] = [:]
-    var orderedKeys: [String] = []
-  }
+  func transformAndRegister(_ schema: JSONSchema) throws -> JSONSchema {
+    if let ref = schema.ref {
+      let name = try registerReference(uri: ref, schema: schema)
+      return JSONSchema(ref: "#/$defs/\(name)", id: nil)
+    }
 
-  #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-  private let lock = OSAllocatedUnfairLock(initialState: State())
-  #else
-  private final class LockState: @unchecked Sendable {
-    var state = State()
-    let lock = NSLock()
-  }
-  private let lockState = LockState()
-  #endif
-
-  public init(bundleExternalRefs: Bool) {
-    self.bundleExternalRefs = bundleExternalRefs
-  }
-
-  public var registeredStubs: [String: ExternalSchemaStub] {
-    #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-    return lock.withLock { $0.registeredStubs }
-    #else
-    lockState.lock.lock()
-    defer { lockState.lock.unlock() }
-    return lockState.state.registeredStubs
-    #endif
-  }
-
-  public var orderedKeys: [String] {
-    #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-    return lock.withLock { $0.orderedKeys }
-    #else
-    lockState.lock.lock()
-    defer { lockState.lock.unlock() }
-    return lockState.state.orderedKeys
-    #endif
-  }
-
-  public func register(_ stub: ExternalSchemaStub) -> String {
-    let uri = stub.uri
-    let baseKey = lastPathComponentWithoutExtension(from: uri)
-
-    #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-    return lock.withLock { state in
-      // 1. If already registered with the exact same URI, return existing key
-      for (existingKey, existingStub) in state.registeredStubs {
-        if existingStub.uri == uri {
-          return existingKey
+    // Recursively transform children
+    var newProperties: [String: JSONSchema]? = nil
+    if let properties = schema.properties {
+      var temp: [String: JSONSchema] = [:]
+      for key in properties.keys.sorted() {
+        if let v = properties[key] {
+          temp[key] = try transformAndRegister(v)
         }
       }
-
-      // 2. Resolve key collision by appending a counter
-      var key = baseKey
-      var counter = 1
-      while state.registeredStubs[key] != nil {
-        key = "\(baseKey)\(counter)"
-        counter += 1
-      }
-
-      state.registeredStubs[key] = stub
-      state.orderedKeys.append(key)
-      return key
-    }
-    #else
-    lockState.lock.lock()
-    defer { lockState.lock.unlock() }
-    // 1. If already registered with the exact same URI, return existing key
-    for (existingKey, existingStub) in lockState.state.registeredStubs {
-      if existingStub.uri == uri {
-        return existingKey
-      }
+      newProperties = temp
     }
 
-    // 2. Resolve key collision by appending a counter
-    var key = baseKey
+    let newItems = try schema.items.map { Box(try transformAndRegister($0.value)) }
+    let newItemArray = try schema.itemArray?.map { try transformAndRegister($0) }
+    let newContains = try schema.contains.map { Box(try transformAndRegister($0.value)) }
+    let newAdditionalProperties = try schema.additionalProperties.map { Box(try transformAndRegister($0.value)) }
+    
+    var newPatternProperties: [String: JSONSchema]? = nil
+    if let patternProperties = schema.patternProperties {
+      var temp: [String: JSONSchema] = [:]
+      for key in patternProperties.keys.sorted() {
+        if let v = patternProperties[key] {
+          temp[key] = try transformAndRegister(v)
+        }
+      }
+      newPatternProperties = temp
+    }
+
+    let newPropertyNames = try schema.propertyNames.map { Box(try transformAndRegister($0.value)) }
+
+    var newDependencies: [String: Dependency]? = nil
+    if let dependencies = schema.dependencies {
+      var temp: [String: Dependency] = [:]
+      for key in dependencies.keys.sorted() {
+        if let v = dependencies[key] {
+          switch v {
+          case .property(let keys):
+            temp[key] = .property(keys)
+          case .schema(let s):
+            temp[key] = .schema(try transformAndRegister(s))
+          }
+        }
+      }
+      newDependencies = temp
+    }
+
+    let newAllOf = try schema.allOf?.map { try transformAndRegister($0) }
+    let newAnyOf = try schema.anyOf?.map { try transformAndRegister($0) }
+    let newOneOf = try schema.oneOf?.map { try transformAndRegister($0) }
+    let newNot = try schema.not.map { Box(try transformAndRegister($0.value)) }
+    let newIf = try schema.if.map { Box(try transformAndRegister($0.value)) }
+    let newThen = try schema.then.map { Box(try transformAndRegister($0.value)) }
+    let newElse = try schema.else.map { Box(try transformAndRegister($0.value)) }
+
+    return JSONSchema(
+      types: schema.types,
+      properties: newProperties,
+      items: newItems,
+      itemArray: newItemArray,
+      omitType: schema.omitType,
+      minimum: schema.minimum,
+      maximum: schema.maximum,
+      exclusiveMinimum: schema.exclusiveMinimum,
+      exclusiveMaximum: schema.exclusiveMaximum,
+      multipleOf: schema.multipleOf,
+      minLength: schema.minLength,
+      maxLength: schema.maxLength,
+      pattern: schema.pattern,
+      minItems: schema.minItems,
+      maxItems: schema.maxItems,
+      uniqueItems: schema.uniqueItems,
+      contains: newContains,
+      minProperties: schema.minProperties,
+      maxProperties: schema.maxProperties,
+      required: schema.required,
+      additionalProperties: newAdditionalProperties,
+      patternProperties: newPatternProperties,
+      propertyNames: newPropertyNames,
+      dependencies: newDependencies,
+      allOf: newAllOf,
+      anyOf: newAnyOf,
+      oneOf: newOneOf,
+      not: newNot,
+      if: newIf,
+      then: newThen,
+      else: newElse,
+      const: schema.const,
+      enum: schema.enum,
+      ref: schema.ref,
+      id: schema.id,
+      isBooleanSchema: schema.isBooleanSchema,
+      booleanSchemaValue: schema.booleanSchemaValue
+    )
+  }
+
+  private func registerReference(uri: String, schema: JSONSchema) throws -> String {
+    if let existingName = uriToName[uri] {
+      return existingName
+    }
+
+    // Extract base name from URI
+    let baseName: String
+    if let url = URL(string: uri) {
+      let lastComponent = url.lastPathComponent
+      if lastComponent.hasSuffix(".json") {
+        baseName = String(lastComponent.dropSuffix(".json"))
+      } else {
+        baseName = lastComponent.isEmpty ? "ref" : lastComponent
+      }
+    } else {
+      baseName = "ref"
+    }
+
+    var candidate = baseName
     var counter = 1
-    while lockState.state.registeredStubs[key] != nil {
-      key = "\(baseKey)\(counter)"
+    while definitions[candidate] != nil {
+      candidate = "\(baseName)\(counter)"
       counter += 1
     }
 
-    lockState.state.registeredStubs[key] = stub
-    lockState.state.orderedKeys.append(key)
-    return key
-    #endif
-  }
+    uriToName[uri] = candidate
 
-  private func lastPathComponentWithoutExtension(
-    from uri: String
-  ) -> String {
-    let components = uri.split(separator: "/")
-    guard let last = components.last else { return "ref" }
-    let subcomponents = last.split(separator: ".")
-    if subcomponents.count > 1 {
-      return String(subcomponents.dropLast().joined(separator: "."))
+    // Detect cycle!
+    guard !visiting.contains(uri) else {
+      // Register an empty stub for now to break recursion, it will be populated when the parent call unwinds.
+      definitions[candidate] = JSONSchema(ref: nil, id: uri)
+      return candidate
     }
-    return String(last)
+
+    visiting.insert(uri)
+    defer { visiting.remove(uri) }
+
+    var targetSchema = schema
+    var visited = Set<String>()
+    while let next = targetSchema.localSchema?.value {
+      if let ref = targetSchema.ref {
+        if visited.contains(ref) { break }
+        visited.insert(ref)
+      }
+      targetSchema = next
+    }
+    let schemaWithoutRef = JSONSchema(
+      types: targetSchema.types,
+      properties: targetSchema.properties,
+      items: targetSchema.items,
+      itemArray: targetSchema.itemArray,
+      omitType: targetSchema.omitType,
+      minimum: targetSchema.minimum,
+      maximum: targetSchema.maximum,
+      exclusiveMinimum: targetSchema.exclusiveMinimum,
+      exclusiveMaximum: targetSchema.exclusiveMaximum,
+      multipleOf: targetSchema.multipleOf,
+      minLength: targetSchema.minLength,
+      maxLength: targetSchema.maxLength,
+      pattern: targetSchema.pattern,
+      minItems: targetSchema.minItems,
+      maxItems: targetSchema.maxItems,
+      uniqueItems: targetSchema.uniqueItems,
+      contains: targetSchema.contains,
+      minProperties: targetSchema.minProperties,
+      maxProperties: targetSchema.maxProperties,
+      required: targetSchema.required,
+      additionalProperties: targetSchema.additionalProperties,
+      patternProperties: targetSchema.patternProperties,
+      propertyNames: targetSchema.propertyNames,
+      dependencies: targetSchema.dependencies,
+      allOf: targetSchema.allOf,
+      anyOf: targetSchema.anyOf,
+      oneOf: targetSchema.oneOf,
+      not: targetSchema.not,
+      if: targetSchema.if,
+      then: targetSchema.then,
+      else: targetSchema.else,
+      const: targetSchema.const,
+      enum: targetSchema.enum,
+      ref: nil,
+      id: uri,
+      isBooleanSchema: targetSchema.isBooleanSchema,
+      booleanSchemaValue: targetSchema.booleanSchemaValue
+    )
+
+    let transformedSchema = try transformAndRegister(schemaWithoutRef)
+    definitions[candidate] = transformedSchema
+
+    return candidate
   }
 }
 
-struct RootWrapper: Encodable {
-  let schemaObject: SchemaObject
-  let tracker: ReferenceTracker
+private extension String {
+  func dropSuffix(_ suffix: String) -> Substring {
+    if hasSuffix(suffix) {
+      return prefix(count - suffix.count)
+    }
+    return self[...]
+  }
+}
+
+// MARK: - Helper JSON Sorting & Conversion
+
+private func convertToJSONValue(_ val: Any) throws -> JSONValue {
+  if let str = val as? String {
+    return .string(str)
+  } else if let num = val as? Double {
+    return .number(num)
+  } else if let num = val as? Int {
+    return .number(Double(num))
+  } else if let bool = val as? Bool {
+    return .boolean(bool)
+  } else if let arr = val as? [Any] {
+    return .array(try arr.map { try convertToJSONValue($0) })
+  } else if let dict = val as? [String: Any] {
+    var mapped: [String: JSONValue] = [:]
+    for (k, v) in dict {
+      mapped[k] = try convertToJSONValue(v)
+    }
+    return .object(mapped)
+  } else {
+    return .null
+  }
+}
+
+private func sortJSONKeysAlphabetically(_ jsonString: String, prettyPrinted: Bool) throws -> String {
+  let data = Data(jsonString.utf8)
+  let obj = try JSONSerialization.jsonObject(with: data, options: [])
+  
+  let options: JSONSerialization.WritingOptions = prettyPrinted ? [.prettyPrinted, .sortedKeys] : [.sortedKeys]
+  let sortedData = try JSONSerialization.data(withJSONObject: obj, options: options)
+  let result = String(decoding: sortedData, as: UTF8.self)
+  return result.replacingOccurrences(of: "\\/", with: "/")
+}
+
+// MARK: - Custom Coding Keys for Dynamic Serialization
+
+struct DynamicCodingKeys: CodingKey {
+  var stringValue: String
+  init?(stringValue: String) {
+    self.stringValue = stringValue
+  }
+  var intValue: Int?
+  init?(intValue: Int) {
+    return nil
+  }
+}
+
+// MARK: - TopLevelSchema Wrapper for Bundling
+
+private struct TopLevelSchema: Encodable {
+  let defs: [String: JSONSchema]?
+  let schema: JSONSchema
 
   enum CodingKeys: String, CodingKey {
     case defs = "$defs"
   }
 
   func encode(to encoder: Encoder) throws {
-    try schemaObject.encode(to: encoder)
-
-    if tracker.bundleExternalRefs {
-      var container = encoder.container(keyedBy: CodingKeys.self)
-      var defsContainer = container.nestedContainer(
-        keyedBy: DynamicCodingKeys.self,
-        forKey: .defs
-      )
-
-      var processedKeys = Set<String>()
-      while true {
-        let currentKeys = tracker.orderedKeys
-        let unprocessed = currentKeys.filter { !processedKeys.contains($0) }
-        if unprocessed.isEmpty { break }
-
-        for key in unprocessed {
-          if let stub = tracker.registeredStubs[key] {
-            try defsContainer.encode(
-              stub,
-              forKey: DynamicCodingKeys(stringValue: key)
-            )
-          }
-          processedKeys.insert(key)
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    if let defs {
+      // Sort defs alphabetically to ensure deterministic serialization
+      let sortedDefs = defs.sorted(by: { $0.key < $1.key })
+      var defsContainer = container.nestedContainer(keyedBy: DynamicCodingKeys.self, forKey: .defs)
+      for (key, val) in sortedDefs {
+        if let codingKey = DynamicCodingKeys(stringValue: key) {
+          try defsContainer.encode(val, forKey: codingKey)
         }
       }
     }
-  }
-}
-
-extension SchemaObject {
-  public func print(
-    bundleExternalRefs: Bool,
-    sorting: SchemaSorting = .none,
-    escapingSlashes: Bool = false,
-    prettyPrinted: Bool = false
-  ) throws -> String {
-    let encoder = JSONEncoder()
-
-    var formatting: JSONEncoder.OutputFormatting = []
-    if prettyPrinted {
-      formatting.insert(.prettyPrinted)
-    }
-    if sorting == .alphabetical {
-      formatting.insert(.sortedKeys)
-    }
-    if !escapingSlashes {
-      formatting.insert(.withoutEscapingSlashes)
-    }
-    encoder.outputFormatting = formatting
-
-    let tracker = ReferenceTracker(bundleExternalRefs: bundleExternalRefs)
-    encoder.userInfo[.referenceTracker] = tracker
-
-    let wrapper = RootWrapper(schemaObject: self, tracker: tracker)
-    let data = try encoder.encode(wrapper)
-    guard let string = String(data: data, encoding: .utf8) else {
-      throw SchemaError.serializationFailed(
-        "Failed to convert encoded data to UTF-8 string"
-      )
-    }
-    return string
+    try schema.encode(to: encoder)
   }
 }

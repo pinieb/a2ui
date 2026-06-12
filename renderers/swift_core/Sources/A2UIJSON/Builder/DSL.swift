@@ -14,6 +14,123 @@
 
 import Foundation
 
+// MARK: - DSL Elements
+
+/// Represents a property definition in an object schema.
+public struct JSONSchemaProperty: Sendable {
+  public let name: String
+  public let schema: JSONSchema
+  public let isRequired: Bool
+
+  public init(name: String, schema: JSONSchema, isRequired: Bool = false) {
+    self.name = name
+    self.schema = schema
+    self.isRequired = isRequired
+  }
+
+  /// Static factory method enabling leading-dot syntax in builders with direct schema
+  public static func property(
+    _ name: String,
+    isRequired: Bool = false,
+    _ schema: JSONSchema
+  ) -> JSONSchemaProperty {
+    JSONSchemaProperty(name: name, schema: schema, isRequired: isRequired)
+  }
+
+  /// Static factory method enabling leading-dot syntax in builders with closure
+  public static func property(
+    _ name: String,
+    isRequired: Bool = false,
+    _ builder: () -> JSONSchema
+  ) -> JSONSchemaProperty {
+    JSONSchemaProperty(name: name, schema: builder(), isRequired: isRequired)
+  }
+}
+
+// MARK: - Result Builders
+
+@resultBuilder
+public struct JSONSchemaPropertyBuilder: Sendable {
+  public static func buildExpression(_ expression: JSONSchemaProperty) -> JSONSchemaProperty {
+    expression
+  }
+  public static func buildBlock(_ components: JSONSchemaProperty...) -> [JSONSchemaProperty] {
+    return Array(components)
+  }
+}
+
+@resultBuilder
+public struct JSONSchemaArrayBuilder: Sendable {
+  public static func buildExpression(_ expression: JSONSchema) -> JSONSchema {
+    expression
+  }
+  public static func buildBlock(_ components: JSONSchema...) -> [JSONSchema] {
+    return Array(components)
+  }
+}
+
+// MARK: - JSONSchema Static Factories
+
+extension JSONSchema {
+  public static func anyOf(@JSONSchemaArrayBuilder _ builder: () -> [JSONSchema]) -> JSONSchema {
+    JSONSchema(anyOf: builder())
+  }
+
+  public static func allOf(@JSONSchemaArrayBuilder _ builder: () -> [JSONSchema]) -> JSONSchema {
+    JSONSchema(allOf: builder())
+  }
+
+  public static func oneOf(@JSONSchemaArrayBuilder _ builder: () -> [JSONSchema]) -> JSONSchema {
+    JSONSchema(oneOf: builder())
+  }
+
+  public static func not(_ subschema: JSONSchema) -> JSONSchema {
+    JSONSchema(not: Box(subschema))
+  }
+
+  public static func `if`(_ ifSchema: JSONSchema) -> JSONSchemaIfThenElseBuilder {
+    JSONSchemaIfThenElseBuilder(ifSchema: ifSchema)
+  }
+
+  // Reference Factories
+  public static func reference(uri: String) -> JSONSchema {
+    JSONSchema(ref: uri)
+  }
+
+  public static func reference(_ uri: String) -> JSONSchema {
+    JSONSchema(ref: uri)
+  }
+
+}
+
+// MARK: - If-Then-Else Builder
+
+public struct JSONSchemaIfThenElseBuilder {
+  private let ifSchema: JSONSchema
+  private var thenSchema: JSONSchema? = nil
+
+  public init(ifSchema: JSONSchema) {
+    self.ifSchema = ifSchema
+  }
+
+  public func then(_ schema: JSONSchema) -> JSONSchemaIfThenElseBuilder {
+    var copy = self
+    copy.thenSchema = schema
+    return copy
+  }
+
+  public func `else`(_ schema: JSONSchema) -> JSONSchema {
+    JSONSchema(
+      if: Box(ifSchema),
+      then: thenSchema.map { Box($0) },
+      else: Box(schema)
+    )
+  }
+}
+
+// MARK: - Legacy Compatibility Builders
+
+@available(*, deprecated, message: "Use JSONSchemaProperty instead")
 public struct SchemaProperty: Sendable {
   public let name: String
   public let type: SchemaType
@@ -26,22 +143,28 @@ public struct SchemaProperty: Sendable {
   }
 }
 
-@resultBuilder
-public struct SchemaBuilder {
-  public static func buildBlock(
-    _ components: SchemaProperty...
-  ) -> [SchemaProperty] {
-    components
+@available(*, deprecated, message: "Use SchemaProperty instead")
+public struct SchemaPatternProperty: Sendable {
+  public let pattern: String
+  public let type: SchemaType
+
+  public init(pattern: String, type: SchemaType) {
+    self.pattern = pattern
+    self.type = type
   }
 }
 
+@available(*, deprecated, message: "Use JSONSchemaPropertyBuilder instead")
+@resultBuilder
+public struct SchemaBuilder {
+  public static func buildBlock(_ components: SchemaProperty...) -> [SchemaProperty] {
+    return Array(components)
+  }
+}
+
+@available(*, deprecated, message: "Use JSONSchema.object(...) instead")
 public struct SchemaObject: SchemaType {
-  public let properties: [SchemaProperty]
-  public let omitType: Bool
-  public let additionalProperties: SchemaType?
-  public let patternProperties: [SchemaPatternProperty]?
-  private let propertyNames: Set<String>
-  private let propertiesByName: [String: SchemaProperty]
+  private let schema: JSONSchema
 
   public init(
     omitType: Bool = false,
@@ -50,46 +173,30 @@ public struct SchemaObject: SchemaType {
     @SchemaBuilder _ builder: () -> [SchemaProperty]
   ) {
     let props = builder()
-    let names = props.map { $0.name }
-    let nameSet = Set(names)
-    assert(
-      nameSet.count == names.count,
-      "Duplicate property names detected in SchemaObject: \(names)"
-    )
-    self.properties = props
-    self.omitType = omitType
-    self.additionalProperties = additionalProperties ? nil : SchemaNone()
-    self.patternProperties = patternProperties
-    self.propertyNames = nameSet
-    var propMap: [String: SchemaProperty] = [:]
+    var propDict: [String: JSONSchema] = [:]
+    var reqSet = Set<String>()
     for prop in props {
-      propMap[prop.name] = prop
+      propDict[prop.name] = prop.type as? JSONSchema ?? JSONSchema(allOf: [prop.type as! JSONSchema])
+      if prop.isRequired {
+        reqSet.insert(prop.name)
+      }
     }
-    self.propertiesByName = propMap
-  }
-
-  public init(
-    omitType: Bool = false,
-    additionalProperties: Bool = true,
-    patternProperties: [SchemaPatternProperty]? = nil,
-    properties: [SchemaProperty]
-  ) {
-    let names = properties.map { $0.name }
-    let nameSet = Set(names)
-    assert(
-      nameSet.count == names.count,
-      "Duplicate property names detected in SchemaObject: \(names)"
+    var patternDict: [String: JSONSchema]? = nil
+    if let patternProperties {
+      var temp: [String: JSONSchema] = [:]
+      for patProp in patternProperties {
+        temp[patProp.pattern] = patProp.type as? JSONSchema ?? JSONSchema(allOf: [patProp.type as! JSONSchema])
+      }
+      patternDict = temp
+    }
+    self.schema = JSONSchema(
+      types: omitType ? nil : [.object],
+      properties: propDict,
+      omitType: omitType,
+      required: reqSet.isEmpty ? nil : reqSet,
+      additionalProperties: additionalProperties ? nil : Box(JSONSchema(booleanSchema: false)),
+      patternProperties: patternDict
     )
-    self.properties = properties
-    self.omitType = omitType
-    self.additionalProperties = additionalProperties ? nil : SchemaNone()
-    self.patternProperties = patternProperties
-    self.propertyNames = nameSet
-    var propMap: [String: SchemaProperty] = [:]
-    for prop in properties {
-      propMap[prop.name] = prop
-    }
-    self.propertiesByName = propMap
   }
 
   public init(
@@ -99,225 +206,116 @@ public struct SchemaObject: SchemaType {
     @SchemaBuilder _ builder: () -> [SchemaProperty]
   ) {
     let props = builder()
-    let names = props.map { $0.name }
-    let nameSet = Set(names)
-    assert(
-      nameSet.count == names.count,
-      "Duplicate property names detected in SchemaObject: \(names)"
-    )
-    self.properties = props
-    self.omitType = omitType
-    self.additionalProperties = additionalProperties
-    self.patternProperties = patternProperties
-    self.propertyNames = nameSet
-    var propMap: [String: SchemaProperty] = [:]
+    var propDict: [String: JSONSchema] = [:]
+    var reqSet = Set<String>()
     for prop in props {
-      propMap[prop.name] = prop
+      propDict[prop.name] = prop.type as? JSONSchema ?? JSONSchema(allOf: [prop.type as! JSONSchema])
+      if prop.isRequired {
+        reqSet.insert(prop.name)
+      }
     }
-    self.propertiesByName = propMap
-  }
-
-  public init(
-    omitType: Bool = false,
-    additionalProperties: SchemaType?,
-    patternProperties: [SchemaPatternProperty]? = nil,
-    properties: [SchemaProperty]
-  ) {
-    let names = properties.map { $0.name }
-    let nameSet = Set(names)
-    assert(
-      nameSet.count == names.count,
-      "Duplicate property names detected in SchemaObject: \(names)"
+    var patternDict: [String: JSONSchema]? = nil
+    if let patternProperties {
+      var temp: [String: JSONSchema] = [:]
+      for patProp in patternProperties {
+        temp[patProp.pattern] = patProp.type as? JSONSchema ?? JSONSchema(allOf: [patProp.type as! JSONSchema])
+      }
+      patternDict = temp
+    }
+    self.schema = JSONSchema(
+      types: omitType ? nil : [.object],
+      properties: propDict,
+      omitType: omitType,
+      required: reqSet.isEmpty ? nil : reqSet,
+      additionalProperties: additionalProperties.map { Box($0 as? JSONSchema ?? JSONSchema(allOf: [$0 as! JSONSchema])) },
+      patternProperties: patternDict
     )
-    self.properties = properties
-    self.omitType = omitType
-    self.additionalProperties = additionalProperties
-    self.patternProperties = patternProperties
-    self.propertyNames = nameSet
-    var propMap: [String: SchemaProperty] = [:]
-    for prop in properties {
-      propMap[prop.name] = prop
-    }
-    self.propertiesByName = propMap
   }
 
   public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    if !omitType {
-      try container.encode("object", forKey: .type)
-    }
-
-    var propertiesContainer = container.nestedContainer(
-      keyedBy: DynamicCodingKeys.self,
-      forKey: .properties
-    )
-    var requiredKeys: [String] = []
-
-    for property in properties {
-      try propertiesContainer.encode(
-        AnyEncodable(property.type),
-        forKey: DynamicCodingKeys(stringValue: property.name)
-      )
-      if property.isRequired {
-        requiredKeys.append(property.name)
-      }
-    }
-
-    if !requiredKeys.isEmpty {
-      var seen = Set<String>()
-      let uniqueRequired = requiredKeys.filter {
-        seen.insert($0).inserted
-      }.sorted()  // Sort alphabetically for perfect determinism
-      try container.encode(uniqueRequired, forKey: .required)
-    }
-
-    if let additionalProperties {
-      if additionalProperties is SchemaNone {
-        try container.encode(false, forKey: .additionalProperties)
-      } else {
-        try container.encode(AnyEncodable(additionalProperties), forKey: .additionalProperties)
-      }
-    }
-
-    if let patternProperties, !patternProperties.isEmpty {
-      var patternContainer = container.nestedContainer(
-        keyedBy: DynamicCodingKeys.self,
-        forKey: .patternProperties
-      )
-      for prop in patternProperties {
-        try patternContainer.encode(
-          AnyEncodable(prop.type),
-          forKey: DynamicCodingKeys(stringValue: prop.pattern)
-        )
-      }
-    }
+    try schema.encode(to: encoder)
   }
 
   public func validate(instance: JSONValue) throws -> ValidationOutput {
-    guard case .object(let dict) = instance else {
-      if omitType {
-        return ValidationOutput(instance: instance, children: [:])
-      } else {
-        throw ValidationError(
-          path: "/",
-          message: "Expected object, got \(instance.typeName)"
-        )
-      }
-    }
-
-    var children: [String: ValidationOutput] = [:]
-
-    for (key, val) in dict {
-      var matchedAnyPattern = false
-      var patternOutputs: [ValidationOutput] = []
-
-      // Check pattern properties using precompiled regexes
-      if let patternProperties {
-        for patProp in patternProperties {
-          if let regex = patProp.regex {
-            let range = NSRange(key.startIndex..<key.endIndex, in: key)
-            if regex.firstMatch(in: key, options: [], range: range) != nil {
-              matchedAnyPattern = true
-              do {
-                let out = try patProp.type.validate(instance: val)
-                patternOutputs.append(out)
-              } catch let error as ValidationError {
-                let segment = key
-                let prependedPath =
-                  error.path == "/"
-                  ? "/\(segment)"
-                  : "/\(segment)\(error.path)"
-                throw ValidationError(path: prependedPath, message: error.message)
-              }
-            }
-          }
-        }
-      }
-
-      // Check standard properties in O(1) time
-      var standardOutput: ValidationOutput? = nil
-      if let property = propertiesByName[key] {
-        do {
-          standardOutput = try property.type.validate(instance: val)
-        } catch let error as ValidationError {
-          let segment = key
-          let prependedPath =
-            error.path == "/"
-            ? "/\(segment)"
-            : "/\(segment)\(error.path)"
-          throw ValidationError(path: prependedPath, message: error.message)
-        }
-      }
-
-      // Check additional properties
-      var additionalOutput: ValidationOutput? = nil
-      let isDeclaredProperty = propertyNames.contains(key)
-      if !isDeclaredProperty && !matchedAnyPattern {
-        if let additionalPropertiesSchema = additionalProperties {
-          if additionalPropertiesSchema is SchemaNone {
-            throw ValidationError(
-              path: "/\(key)",
-              message: "additional property '\(key)' is not allowed"
-            )
-          }
-          do {
-            additionalOutput = try additionalPropertiesSchema.validate(instance: val)
-          } catch let error as ValidationError {
-            let segment = key
-            let prependedPath =
-              error.path == "/"
-              ? "/\(segment)"
-              : "/\(segment)\(error.path)"
-            throw ValidationError(path: prependedPath, message: error.message)
-          }
-        }
-      }
-
-      // Merge all outputs for this key
-      var keyOutputs: [ValidationOutput] = []
-      if let standardOutput {
-        keyOutputs.append(standardOutput)
-      }
-      keyOutputs.append(contentsOf: patternOutputs)
-      if let additionalOutput {
-        keyOutputs.append(additionalOutput)
-      }
-
-      if !keyOutputs.isEmpty {
-        children[key] = mergeValidationOutputs(keyOutputs, instance: val)
-      }
-    }
-
-    // Check for missing required properties
-    for property in properties {
-      if property.isRequired && dict[property.name] == nil {
-        throw ValidationError(
-          path: "/",
-          message: "missing required property: \(property.name)"
-        )
-      }
-    }
-
-    return ValidationOutput(instance: instance, children: children)
-  }
-
-  private enum CodingKeys: String, CodingKey {
-    case type
-    case properties
-    case required
-    case additionalProperties
-    case patternProperties
+    try schema.validate(instance: instance)
   }
 }
 
+// MARK: - Dependencies DSL
 
-// MARK: - Dynamic Coding Keys
+public struct JSONSchemaDependency: Sendable {
+  public let triggerKey: String
+  public let dependency: Dependency
 
-struct DynamicCodingKeys: CodingKey {
-  var stringValue: String
-  init(stringValue: String) {
-    self.stringValue = stringValue
+  public static func dependency(_ triggerKey: String, keys: [String]) -> JSONSchemaDependency {
+    JSONSchemaDependency(triggerKey: triggerKey, dependency: .property(keys))
   }
-  var intValue: Int? { nil }
-  init?(intValue: Int) { nil }
+
+  public static func dependency(_ triggerKey: String, _ schema: JSONSchema) -> JSONSchemaDependency {
+    JSONSchemaDependency(triggerKey: triggerKey, dependency: .schema(schema))
+  }
+
+  public static func dependency(_ triggerKey: String, _ builder: () -> JSONSchema) -> JSONSchemaDependency {
+    JSONSchemaDependency(triggerKey: triggerKey, dependency: .schema(builder()))
+  }
 }
+
+@resultBuilder
+public struct JSONSchemaDependencyBuilder: Sendable {
+  public static func buildExpression(_ expression: JSONSchemaDependency) -> JSONSchemaDependency {
+    expression
+  }
+  public static func buildBlock(_ components: JSONSchemaDependency...) -> [JSONSchemaDependency] {
+    Array(components)
+  }
+}
+
+// MARK: - Pattern Properties DSL
+
+public struct JSONSchemaPatternProperty: Sendable {
+  public let pattern: String
+  public let schema: JSONSchema
+
+  public static func pattern(_ pattern: String, _ schema: JSONSchema) -> JSONSchemaPatternProperty {
+    JSONSchemaPatternProperty(pattern: pattern, schema: schema)
+  }
+
+  public static func pattern(_ pattern: String, _ builder: () -> JSONSchema) -> JSONSchemaPatternProperty {
+    JSONSchemaPatternProperty(pattern: pattern, schema: builder())
+  }
+}
+
+@resultBuilder
+public struct JSONSchemaPatternPropertyBuilder: Sendable {
+  public static func buildExpression(_ expression: JSONSchemaPatternProperty) -> JSONSchemaPatternProperty {
+    expression
+  }
+  public static func buildBlock(_ components: JSONSchemaPatternProperty...) -> [JSONSchemaPatternProperty] {
+    Array(components)
+  }
+}
+
+// MARK: - JSONSchema Fluent Modifiers for DSL
+
+extension JSONSchema {
+  public func dependencies(
+    @JSONSchemaDependencyBuilder _ builder: () -> [JSONSchemaDependency]
+  ) -> JSONSchema {
+    var dict: [String: Dependency] = [:]
+    for dep in builder() {
+      dict[dep.triggerKey] = dep.dependency
+    }
+    return mutatingCopy(dependencies: dict)
+  }
+
+  public func patternProperties(
+    @JSONSchemaPatternPropertyBuilder _ builder: () -> [JSONSchemaPatternProperty]
+  ) -> JSONSchema {
+    var dict: [String: JSONSchema] = [:]
+    for patProp in builder() {
+      dict[patProp.pattern] = patProp.schema
+    }
+    return mutatingCopy(patternProperties: dict)
+  }
+}
+

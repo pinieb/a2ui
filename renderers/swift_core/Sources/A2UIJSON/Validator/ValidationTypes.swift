@@ -16,17 +16,26 @@ import Foundation
 
 public struct ValidationOutput: Sendable, Equatable {
   public let instance: JSONValue
+  public let schema: JSONSchema
   public let matchedSchemaIDs: [String]
   public let children: [String: ValidationOutput]
+  public let evaluatedProperties: Set<String>
+  public let evaluatedItems: Set<Int>
 
   public init(
     instance: JSONValue,
+    schema: JSONSchema = JSONSchema(booleanSchema: true),
     matchedSchemaIDs: [String] = [],
-    children: [String: ValidationOutput] = [:]
+    children: [String: ValidationOutput] = [:],
+    evaluatedProperties: Set<String> = [],
+    evaluatedItems: Set<Int> = []
   ) {
     self.instance = instance
+    self.schema = schema
     self.matchedSchemaIDs = matchedSchemaIDs
     self.children = children
+    self.evaluatedProperties = evaluatedProperties
+    self.evaluatedItems = evaluatedItems
   }
 }
 
@@ -44,18 +53,24 @@ public struct ValidationError: Error, Sendable, Equatable {
 
 func mergeValidationOutputs(
   _ outputs: [ValidationOutput],
-  instance: JSONValue
+  instance: JSONValue,
+  schema: JSONSchema
 ) -> ValidationOutput {
   var matchedIDs: [String] = []
   var children: [String: ValidationOutput] = [:]
+  var evalProps: Set<String> = []
+  var evalItems: Set<Int> = []
 
   for output in outputs {
     matchedIDs.append(contentsOf: output.matchedSchemaIDs)
+    evalProps.formUnion(output.evaluatedProperties)
+    evalItems.formUnion(output.evaluatedItems)
     for (key, val) in output.children {
       if let existing = children[key] {
         children[key] = mergeValidationOutputs(
           [existing, val],
-          instance: val.instance
+          instance: val.instance,
+          schema: val.schema
         )
       } else {
         children[key] = val
@@ -68,7 +83,10 @@ func mergeValidationOutputs(
 
   return ValidationOutput(
     instance: instance,
+    schema: schema,
     matchedSchemaIDs: uniqueIDs,
-    children: children
+    children: children,
+    evaluatedProperties: evalProps,
+    evaluatedItems: evalItems
   )
 }
