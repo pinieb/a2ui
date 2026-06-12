@@ -13,7 +13,9 @@
 // limitations under the License.
 
 import Foundation
+#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 import os
+#endif
 
 public enum SchemaSorting: Sendable {
   /// No sorting guarantees (uses default Swift dictionary hashing order).
@@ -41,24 +43,45 @@ public final class ReferenceTracker: @unchecked Sendable {
     var orderedKeys: [String] = []
   }
 
+  #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
   private let lock = OSAllocatedUnfairLock(initialState: State())
+  #else
+  private final class LockState: @unchecked Sendable {
+    var state = State()
+    let lock = NSLock()
+  }
+  private let lockState = LockState()
+  #endif
 
   public init(bundleExternalRefs: Bool) {
     self.bundleExternalRefs = bundleExternalRefs
   }
 
   public var registeredStubs: [String: ExternalSchemaStub] {
-    lock.withLock { $0.registeredStubs }
+    #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+    return lock.withLock { $0.registeredStubs }
+    #else
+    lockState.lock.lock()
+    defer { lockState.lock.unlock() }
+    return lockState.state.registeredStubs
+    #endif
   }
 
   public var orderedKeys: [String] {
-    lock.withLock { $0.orderedKeys }
+    #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+    return lock.withLock { $0.orderedKeys }
+    #else
+    lockState.lock.lock()
+    defer { lockState.lock.unlock() }
+    return lockState.state.orderedKeys
+    #endif
   }
 
   public func register(_ stub: ExternalSchemaStub) -> String {
     let uri = stub.uri
     let baseKey = lastPathComponentWithoutExtension(from: uri)
 
+    #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
     return lock.withLock { state in
       // 1. If already registered with the exact same URI, return existing key
       for (existingKey, existingStub) in state.registeredStubs {
@@ -79,6 +102,28 @@ public final class ReferenceTracker: @unchecked Sendable {
       state.orderedKeys.append(key)
       return key
     }
+    #else
+    lockState.lock.lock()
+    defer { lockState.lock.unlock() }
+    // 1. If already registered with the exact same URI, return existing key
+    for (existingKey, existingStub) in lockState.state.registeredStubs {
+      if existingStub.uri == uri {
+        return existingKey
+      }
+    }
+
+    // 2. Resolve key collision by appending a counter
+    var key = baseKey
+    var counter = 1
+    while lockState.state.registeredStubs[key] != nil {
+      key = "\(baseKey)\(counter)"
+      counter += 1
+    }
+
+    lockState.state.registeredStubs[key] = stub
+    lockState.state.orderedKeys.append(key)
+    return key
+    #endif
   }
 
   private func lastPathComponentWithoutExtension(

@@ -38,37 +38,107 @@ public struct SchemaBuilder {
 public struct SchemaObject: SchemaType {
   public let properties: [SchemaProperty]
   public let omitType: Bool
-  public let additionalProperties: Bool
+  public let additionalProperties: SchemaType?
+  public let patternProperties: [SchemaPatternProperty]?
+  private let propertyNames: Set<String>
+  private let propertiesByName: [String: SchemaProperty]
 
   public init(
     omitType: Bool = false,
     additionalProperties: Bool = true,
+    patternProperties: [SchemaPatternProperty]? = nil,
     @SchemaBuilder _ builder: () -> [SchemaProperty]
   ) {
     let props = builder()
     let names = props.map { $0.name }
+    let nameSet = Set(names)
     assert(
-      Set(names).count == names.count,
+      nameSet.count == names.count,
       "Duplicate property names detected in SchemaObject: \(names)"
     )
     self.properties = props
     self.omitType = omitType
-    self.additionalProperties = additionalProperties
+    self.additionalProperties = additionalProperties ? nil : SchemaNone()
+    self.patternProperties = patternProperties
+    self.propertyNames = nameSet
+    var propMap: [String: SchemaProperty] = [:]
+    for prop in props {
+      propMap[prop.name] = prop
+    }
+    self.propertiesByName = propMap
   }
 
   public init(
     omitType: Bool = false,
     additionalProperties: Bool = true,
+    patternProperties: [SchemaPatternProperty]? = nil,
     properties: [SchemaProperty]
   ) {
     let names = properties.map { $0.name }
+    let nameSet = Set(names)
     assert(
-      Set(names).count == names.count,
+      nameSet.count == names.count,
+      "Duplicate property names detected in SchemaObject: \(names)"
+    )
+    self.properties = properties
+    self.omitType = omitType
+    self.additionalProperties = additionalProperties ? nil : SchemaNone()
+    self.patternProperties = patternProperties
+    self.propertyNames = nameSet
+    var propMap: [String: SchemaProperty] = [:]
+    for prop in properties {
+      propMap[prop.name] = prop
+    }
+    self.propertiesByName = propMap
+  }
+
+  public init(
+    omitType: Bool = false,
+    additionalProperties: SchemaType?,
+    patternProperties: [SchemaPatternProperty]? = nil,
+    @SchemaBuilder _ builder: () -> [SchemaProperty]
+  ) {
+    let props = builder()
+    let names = props.map { $0.name }
+    let nameSet = Set(names)
+    assert(
+      nameSet.count == names.count,
+      "Duplicate property names detected in SchemaObject: \(names)"
+    )
+    self.properties = props
+    self.omitType = omitType
+    self.additionalProperties = additionalProperties
+    self.patternProperties = patternProperties
+    self.propertyNames = nameSet
+    var propMap: [String: SchemaProperty] = [:]
+    for prop in props {
+      propMap[prop.name] = prop
+    }
+    self.propertiesByName = propMap
+  }
+
+  public init(
+    omitType: Bool = false,
+    additionalProperties: SchemaType?,
+    patternProperties: [SchemaPatternProperty]? = nil,
+    properties: [SchemaProperty]
+  ) {
+    let names = properties.map { $0.name }
+    let nameSet = Set(names)
+    assert(
+      nameSet.count == names.count,
       "Duplicate property names detected in SchemaObject: \(names)"
     )
     self.properties = properties
     self.omitType = omitType
     self.additionalProperties = additionalProperties
+    self.patternProperties = patternProperties
+    self.propertyNames = nameSet
+    var propMap: [String: SchemaProperty] = [:]
+    for prop in properties {
+      propMap[prop.name] = prop
+    }
+    self.propertiesByName = propMap
   }
 
   public func encode(to encoder: Encoder) throws {
@@ -101,53 +171,133 @@ public struct SchemaObject: SchemaType {
       try container.encode(uniqueRequired, forKey: .required)
     }
 
-    if !additionalProperties {
-      try container.encode(false, forKey: .additionalProperties)
+    if let additionalProperties {
+      if additionalProperties is SchemaNone {
+        try container.encode(false, forKey: .additionalProperties)
+      } else {
+        try container.encode(AnyEncodable(additionalProperties), forKey: .additionalProperties)
+      }
+    }
+
+    if let patternProperties, !patternProperties.isEmpty {
+      var patternContainer = container.nestedContainer(
+        keyedBy: DynamicCodingKeys.self,
+        forKey: .patternProperties
+      )
+      for prop in patternProperties {
+        try patternContainer.encode(
+          AnyEncodable(prop.type),
+          forKey: DynamicCodingKeys(stringValue: prop.pattern)
+        )
+      }
     }
   }
 
   public func validate(instance: JSONValue) throws -> ValidationOutput {
     guard case .object(let dict) = instance else {
-      throw ValidationError(
-        path: "/",
-        message: "Expected object, got \(instance.typeName)"
-      )
-    }
-
-    // Reject additional properties if forbidden
-    if !additionalProperties {
-      let definedNames = Set(properties.map { $0.name })
-      for key in dict.keys {
-        if !definedNames.contains(key) {
-          throw ValidationError(
-            path: "/\(key)",
-            message: "additional property '\(key)' is not allowed"
-          )
-        }
+      if omitType {
+        return ValidationOutput(instance: instance, children: [:])
+      } else {
+        throw ValidationError(
+          path: "/",
+          message: "Expected object, got \(instance.typeName)"
+        )
       }
     }
 
     var children: [String: ValidationOutput] = [:]
-    for property in properties {
-      if let val = dict[property.name] {
+
+    for (key, val) in dict {
+      var matchedAnyPattern = false
+      var patternOutputs: [ValidationOutput] = []
+
+      // Check pattern properties using precompiled regexes
+      if let patternProperties {
+        for patProp in patternProperties {
+          if let regex = patProp.regex {
+            let range = NSRange(key.startIndex..<key.endIndex, in: key)
+            if regex.firstMatch(in: key, options: [], range: range) != nil {
+              matchedAnyPattern = true
+              do {
+                let out = try patProp.type.validate(instance: val)
+                patternOutputs.append(out)
+              } catch let error as ValidationError {
+                let segment = key
+                let prependedPath =
+                  error.path == "/"
+                  ? "/\(segment)"
+                  : "/\(segment)\(error.path)"
+                throw ValidationError(path: prependedPath, message: error.message)
+              }
+            }
+          }
+        }
+      }
+
+      // Check standard properties in O(1) time
+      var standardOutput: ValidationOutput? = nil
+      if let property = propertiesByName[key] {
         do {
-          let childOutput = try property.type.validate(instance: val)
-          children[property.name] = childOutput
+          standardOutput = try property.type.validate(instance: val)
         } catch let error as ValidationError {
-          let segment = property.name
+          let segment = key
           let prependedPath =
             error.path == "/"
             ? "/\(segment)"
             : "/\(segment)\(error.path)"
           throw ValidationError(path: prependedPath, message: error.message)
         }
-      } else if property.isRequired {
+      }
+
+      // Check additional properties
+      var additionalOutput: ValidationOutput? = nil
+      let isDeclaredProperty = propertyNames.contains(key)
+      if !isDeclaredProperty && !matchedAnyPattern {
+        if let additionalPropertiesSchema = additionalProperties {
+          if additionalPropertiesSchema is SchemaNone {
+            throw ValidationError(
+              path: "/\(key)",
+              message: "additional property '\(key)' is not allowed"
+            )
+          }
+          do {
+            additionalOutput = try additionalPropertiesSchema.validate(instance: val)
+          } catch let error as ValidationError {
+            let segment = key
+            let prependedPath =
+              error.path == "/"
+              ? "/\(segment)"
+              : "/\(segment)\(error.path)"
+            throw ValidationError(path: prependedPath, message: error.message)
+          }
+        }
+      }
+
+      // Merge all outputs for this key
+      var keyOutputs: [ValidationOutput] = []
+      if let standardOutput {
+        keyOutputs.append(standardOutput)
+      }
+      keyOutputs.append(contentsOf: patternOutputs)
+      if let additionalOutput {
+        keyOutputs.append(additionalOutput)
+      }
+
+      if !keyOutputs.isEmpty {
+        children[key] = mergeValidationOutputs(keyOutputs, instance: val)
+      }
+    }
+
+    // Check for missing required properties
+    for property in properties {
+      if property.isRequired && dict[property.name] == nil {
         throw ValidationError(
           path: "/",
           message: "missing required property: \(property.name)"
         )
       }
     }
+
     return ValidationOutput(instance: instance, children: children)
   }
 
@@ -156,8 +306,10 @@ public struct SchemaObject: SchemaType {
     case properties
     case required
     case additionalProperties
+    case patternProperties
   }
 }
+
 
 // MARK: - Dynamic Coding Keys
 

@@ -14,7 +14,7 @@
 
 import Foundation
 
-public enum JSONValue: Decodable, Sendable, Equatable {
+public enum JSONValue: Codable, Sendable, Equatable {
   case null
   case boolean(Bool)
   case number(Double)
@@ -41,6 +41,24 @@ public enum JSONValue: Decodable, Sendable, Equatable {
         in: container,
         debugDescription: "Unknown JSON value type"
       )
+    }
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
+    switch self {
+    case .null:
+      try container.encodeNil()
+    case .boolean(let val):
+      try container.encode(val)
+    case .number(let val):
+      try container.encode(val)
+    case .string(let val):
+      try container.encode(val)
+    case .array(let val):
+      try container.encode(val)
+    case .object(let val):
+      try container.encode(val)
     }
   }
 

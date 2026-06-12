@@ -1,0 +1,29 @@
+# Use the official Swift image as the build environment
+FROM swift:6.0-jammy AS builder
+
+WORKDIR /src
+
+# Copy the entire workspace into the builder context
+COPY Package.swift Package.swift
+COPY renderers/swift_core renderers/swift_core
+
+# Build from the subdirectory where our tool Package.swift is located
+WORKDIR /src/renderers/swift_core/Tools/A2UIJSONBowtie
+RUN swift build -c release --product A2UIJSONBowtie --static-swift-stdlib
+
+# Create a minimal runtime environment
+FROM ubuntu:22.04
+
+# Install runtime dependencies for Swift Foundation
+RUN apt-get update && apt-get install -y \
+    libcurl4 \
+    libxml2 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the compiled binary from the builder stage
+COPY --from=builder /src/renderers/swift_core/Tools/A2UIJSONBowtie/.build/release/A2UIJSONBowtie /app/harness
+
+# The harness communicates natively over stdin/stdout
+ENTRYPOINT ["/app/harness"]
