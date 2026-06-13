@@ -20,6 +20,12 @@ The package is divided into two distinct targets. Agents must strictly respect t
      `ActionSchema`, `ChildListSchema`, etc.).
    * **Rule**: Place all A2UI-specific logic and schemas here. This target depends on `JSONSchema`.
 
+3. **`A2UICore`** (`Sources/A2UICore`):
+   * **Purpose**: Stateful core engine (SurfaceViewModel, MessageProcessor, Node,
+     DataBinding, ResolvedAction).
+   * **Rule**: Place all stateful runtime logic and engine implementations here. This target
+     depends on `A2UIJSON` and `JSONSchema`.
+
 ---
 
 ## 2. Mandatory Coding Conventions for Agents
@@ -41,6 +47,12 @@ When creating or modifying Swift source files, agents **MUST** strictly adhere t
      very top (refer to the template in
      [DEVELOPMENT.md](DEVELOPMENT.md#3-mandatory-copyright--license-header)).
 
+4. **Swift Testing Suites**:
+   * In Swift Testing, class and struct declarations containing `@Test` functions do not
+     require the `@Suite` attribute unless they need custom configuration (like
+     displayName or traits). Omit redundant `@Suite` attributes to keep test files clean
+     and idiomatic.
+
 ---
 
 ## 3. Verification Protocol
@@ -58,8 +70,9 @@ Before completing any task, agents **MUST** execute the following verification s
      ```bash
      ./run_tests.sh
      ```
-   * Ensure both `JSONSchemaTests` and `A2UIJSONTests` targets run. The script is configured to
-     explicitly run both test targets under `xcodebuild` (total of 46 tests).
+   * Ensure all three test targets (`JSONSchemaTests`, `A2UIJSONTests`, and `A2UICoreTests`) run.
+     The script is configured to explicitly run them under `xcodebuild`.
+
 
 3. **Compile Bowtie Harness**:
    * Ensure that the Bowtie CLI harness builds successfully on macOS:

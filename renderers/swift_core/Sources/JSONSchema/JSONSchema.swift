@@ -1950,7 +1950,12 @@ extension JSONSchema {
         }
 
         if !keyOutputs.isEmpty {
-          children[key] = mergeValidationOutputs(keyOutputs, instance: val, schema: self)
+          let primarySchema = keyOutputs.first?.schema ?? self
+          children[key] = mergeValidationOutputs(
+            keyOutputs,
+            instance: val,
+            schema: primarySchema
+          )
         }
       }
 

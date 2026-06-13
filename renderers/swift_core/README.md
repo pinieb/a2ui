@@ -1,7 +1,8 @@
 # A2UI Swift Core Engine
 
 A platform-agnostic, high-performance Swift library for building, parsing, and validating
-JSON Schema Draft 2020-12 and A2UI common type schemas. Built specifically for iOS (`.iOS(.v16)`).
+JSON Schema Draft 2020-12 and A2UI common type schemas. Supports iOS (`.iOS(.v16)`) and
+macOS (`.macOS(.v13)`).
 
 ---
 
@@ -21,6 +22,16 @@ infrastructure from A2UI-specific logic:
    * Contains the A2UI-specific common type schemas (such as `ActionSchema`, `DataBindingSchema`,
      `DynamicValueSchema`, and `ComponentCommonSchema`).
    * Depends directly on `JSONSchema` to define and validate these schemas.
+
+3. **`A2UICore`**:
+   * The stateful runtime core engine implementing the A2UI state machine, validation pipeline,
+     and bidirectional event routing.
+   * Leverages `MessageProcessor` to parse streaming JSONL packets, validate them against the
+     catalog schemas, and route structured error events (`ClientServerError`) to the host.
+   * Utilizes `SurfaceViewModel` to buffer active components, resolve two-way state bindings,
+     and publish the resolved UI node tree.
+   * Depends directly on both `A2UIJSON` and `JSONSchema`.
+
 
 ---
 
@@ -52,6 +63,7 @@ In your Swift source files, import the targets you need:
 ```swift
 import JSONSchema // For generic JSON Schema builder & validator
 import A2UIJSON   // For A2UI-specific common type schemas
+import A2UICore   // For stateful core engine (SurfaceViewModel, etc.)
 ```
 
 ---

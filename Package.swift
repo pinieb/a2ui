@@ -20,12 +20,13 @@ import PackageDescription
 let package = Package(
   name: "A2UISwiftCore",
   platforms: [
-    .iOS(.v16)
+    .iOS(.v16),
+    .macOS(.v13),
   ],
   products: [
     .library(
       name: "A2UISwiftCore",
-      targets: ["A2UIJSON", "JSONSchema"]
+      targets: ["A2UIJSON", "JSONSchema", "A2UICore"]
     )
   ],
   targets: [
@@ -38,6 +39,11 @@ let package = Package(
       dependencies: ["JSONSchema"],
       path: "renderers/swift_core/Sources/A2UIJSON"
     ),
+    .target(
+      name: "A2UICore",
+      dependencies: ["A2UIJSON", "JSONSchema"],
+      path: "renderers/swift_core/Sources/A2UICore"
+    ),
     .testTarget(
       name: "JSONSchemaTests",
       dependencies: ["JSONSchema"],
@@ -47,6 +53,11 @@ let package = Package(
       name: "A2UIJSONTests",
       dependencies: ["A2UIJSON", "JSONSchema"],
       path: "renderers/swift_core/Tests/A2UIJSONTests"
+    ),
+    .testTarget(
+      name: "A2UICoreTests",
+      dependencies: ["A2UICore", "A2UIJSON", "JSONSchema"],
+      path: "renderers/swift_core/Tests/A2UICoreTests"
     ),
   ]
 )

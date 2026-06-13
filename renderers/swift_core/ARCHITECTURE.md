@@ -6,23 +6,39 @@ workings of the generic JSON Schema validator and builder.
 
 ---
 
-## 1. Modular Target Layout
+## 1. Modular Target Layout & Platforms
 
-The library is split into two distinct modules. The target dependency graph is simple and strictly
-unidirectional:
+The library is split into three distinct targets. The target dependency graph is simple
+and strictly unidirectional:
 
 ```mermaid
 graph TD
-    A2UIJSON["A2UIJSON (Target)"] -->|depends on| JSONSchema["JSONSchema (Target)"]
+    A2UICore["A2UICore (Target)"] -->|depends on| A2UIJSON["A2UIJSON (Target)"]
+    A2UICore["A2UICore (Target)"] -->|depends on| JSONSchema["JSONSchema (Target)"]
+    A2UIJSON["A2UIJSON (Target)"] -->|depends on| JSONSchema
+    A2UICoreTests["A2UICoreTests (Suite)"] --> A2UICore
     A2UIJSONTests["A2UIJSONTests (Suite)"] --> A2UIJSON
     JSONSchemaTests["JSONSchemaTests (Suite)"] --> JSONSchema
     A2UIJSONBowtie["A2UIJSONBowtie (Tool)"] --> JSONSchema
 ```
 
-* **`JSONSchema`** has no dependencies on A2UI, making it fully portable and reusable as a standard
-  Draft 2020-12 validator.
-* **`A2UIJSON`** is a thin layer extending the generic schema structures with A2UI-specific schema
-  definitions.
+### Supported Platforms
+The package supports multi-platform targets:
+- **iOS 16.0+** (`.iOS(.v16)`)
+- **macOS 13.0+** (`.macOS(.v13)`)
+
+### Target Descriptions
+* **`JSONSchema`**: A completely generic Draft 2020-12 validator with no dependencies on A2UI.
+* **`A2UIJSON`**: A thin layer extending generic schema structures with A2UI-specific schemas.
+* **`A2UICore`** is the stateful engine of the Swift Core renderer. It houses the core state machine,
+  lifecycle management, validation routing, and event loop:
+  - **`MessageProcessor`**: The thread-safe entry point coordinating JSONL decoding, schema
+    validation, and routing. It manages the lifecycle of the active `SurfaceViewModel`.
+  - **`SurfaceViewModel`**: The stateful view model managing the component buffer, two-way data
+    model, and active theme. It publishes the resolved UI tree to the main thread.
+  - **Action & Error Routing**: Facilitated by the `ActionHandling` callback protocol, converting
+    internal validation and parsing errors into structured, outgoing `ClientServerError` payloads.
+
 
 ---
 
@@ -128,3 +144,48 @@ graph TD
 * **`mergeValidationOutputs`**: Merges outputs from child properties, array items, and combinators
   (like `allOf`) while maintaining a unique set of matched schema IDs, preventing duplicate
   annotations.
+
+---
+
+## 6. Stateful Engine & Lifecycle Management (`A2UICore`)
+
+The stateful runtime layer of A2UI Swift Core manages the lifecycle
+of the UI surface, reactive state updates, and bidirectional event communication.
+
+### Message Pipeline & Thread Safety
+The core engine uses a thread-safe pipeline to process incoming JSONL messages and
+publish updates:
+
+```mermaid
+graph TD
+    JSONL["JSONL String Line"] -->|MessageProcessor.process| Parser["MessageParser"]
+    Parser -->|Decoded Message| Validation["Schema Validation"]
+    Validation -->|If Valid| Lock["Acquire Lock"]
+    Lock -->|Update Buffer| VM["SurfaceViewModel"]
+    VM -->|Rebuild Tree| Rebuild["rebuildTree()"]
+    Rebuild -->|Publish on Main Thread| UI["@Published rootNode"]
+    Validation -->|If Invalid| ErrorRoute["handleError()"]
+    ErrorRoute -->|ActionHandling callback| Server["Outgoing Error Payload"]
+```
+
+### Lifecycle & Component Buffer
+1. **Creation**: When a `createSurface` message is received, a new `SurfaceViewModel` is
+   instantiated, optionally applying the catalog's decoded active theme.
+2. **Buffering**: Incoming `updateComponents` messages are validated against the
+   `ComponentCatalog` schemas *before* acquiring the write lock. Once validated, the component
+   dictionary is merged into the thread-safe `componentBuffer` protected by an
+   `NSRecursiveLock`.
+3. **Data Binding**: The `updateDataModel` message updates the two-way data model at a
+   specific path. Property resolution reads from this model to bind values dynamically.
+4. **Teardown**: A `deleteSurface` message deallocates the active `SurfaceViewModel`.
+
+### Action & Error Routing
+Any parsing, decoding, or schema validation failures are caught, structured, and routed back
+to the host application via the `ActionHandling` callback:
+- **Validation Errors**: Internal `ValidationError` throws are mapped to `.validationFailed`
+  containing the offending path and error message.
+- **Decoding Errors**: Swift `DecodingError`s (like `.keyNotFound`, `.typeMismatch`,
+  `.valueNotFound`) are mapped to `.validationFailed` with a resolved JSON Pointer. Data
+  corruption errors are mapped to `.generic` with a `PARSING_FAILED` code.
+- **Actions**: Interactive components trigger actions that are resolved, validated, and
+  routed to the server as `ResolvedAction` payloads.

@@ -51,7 +51,24 @@ If you want to run only one of the test targets to save time:
     -only-testing:A2UIJSONTests
   ```
 
+* **A2UICoreTests** (Stateful engine tests):
+  ```bash
+  xcodebuild test -scheme A2UISwiftCore \
+    -destination "platform=iOS Simulator,name=iPhone 16,OS=18.4" \
+    -only-testing:A2UICoreTests
+  ```
+
+### 3. Key Test Suites
+The `A2UICoreTests` suite contains several test files targeting the stateful runtime layer:
+* **`MessageProcessorTests`**: Verifies the thread-safe entry point, covering JSONL stream
+  decoding, surface lifecycle states, and error mapping.
+* **`SurfaceViewModelTests`**: Validates component buffering, schema checks, theme updates,
+  and reactive tree publishing.
+* **`JSONValuePathTests`**: Tests deep keypath subscripts, path resolution, and dynamic
+  two-way data model mutations.
+
 ---
+
 
 ## Coding Standards & Conventions
 

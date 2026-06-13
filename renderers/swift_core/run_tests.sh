@@ -30,16 +30,20 @@ if ! command -v xcodebuild >/dev/null 2>&1; then
 fi
 
 echo "Detecting available iOS Simulator destinations..."
-SIM_LINE=$(xcodebuild -showdestinations -scheme A2UISwiftCore 2>/dev/null | grep "platform:iOS Simulator" | grep -m 1 "iPhone" || true)
+SIM_LINE=$(xcodebuild -showdestinations -scheme A2UISwiftCore-Package 2>/dev/null | grep "platform:iOS Simulator" | grep -m 1 "iPhone" || true)
 
 if [ -n "$SIM_LINE" ]; then
   SIM_OS=$(echo "$SIM_LINE" | sed -E 's/.*OS:([^,]*),.*/\1/')
   SIM_NAME=$(echo "$SIM_LINE" | sed -E 's/.*name:([^}]*).*/\1/' | sed 's/ *$//')
   SIMULATOR_DEST="platform=iOS Simulator,name=$SIM_NAME,OS=$SIM_OS"
-  
   echo "Found simulator destination: $SIMULATOR_DEST"
   echo "Running tests..."
-  xcodebuild test -scheme A2UISwiftCore -destination "$SIMULATOR_DEST" -only-testing:JSONSchemaTests -only-testing:A2UIJSONTests
+  for target in JSONSchemaTests A2UIJSONTests A2UICoreTests A2UISwiftUITests; do
+    echo "--------------------------------------------------"
+    echo "Running $target..."
+    echo "--------------------------------------------------"
+    xcodebuild test -scheme A2UISwiftCore-Package -destination "$SIMULATOR_DEST" -only-testing:"$target"
+  done
 else
   echo "Warning: No iOS Simulator destination found. Trying to build only..."
   if command -v xcrun >/dev/null 2>&1; then
