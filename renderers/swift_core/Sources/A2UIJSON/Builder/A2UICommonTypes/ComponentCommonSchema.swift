@@ -18,8 +18,12 @@ extension A2UICommonSchema {
   public static let componentCommon: JSONSchema = JSONSchema.stub(
     uri: A2UICommonSchema.uri(for: "ComponentCommonSchema"),
     localSchema: JSONSchema.object {
-      JSONSchemaProperty.property("id", isRequired: true) { JSONSchema.reference(A2UICommonSchema.componentID) }
-      JSONSchemaProperty.property("accessibility") { JSONSchema.reference(A2UICommonSchema.accessibilityAttributes) }
+      JSONSchemaProperty.property("id", isRequired: true) {
+        JSONSchema.reference(A2UICommonSchema.componentID)
+      }
+      JSONSchemaProperty.property("accessibility") {
+        JSONSchema.reference(A2UICommonSchema.accessibilityAttributes)
+      }
     }
   )
 }

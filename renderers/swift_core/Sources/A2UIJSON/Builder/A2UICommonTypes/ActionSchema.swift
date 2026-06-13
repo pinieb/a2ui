@@ -36,7 +36,4 @@ extension A2UICommonSchema {
   }
 }
 
-
-
-
 // Note: We intentionally don't wrap this schema in a stub(uri:...) to preserve the historical flat array/object shape representation.

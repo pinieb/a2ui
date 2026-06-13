@@ -87,8 +87,10 @@ private final class ReferenceTracker {
     let newItems = try schema.items.map { Box(try transformAndRegister($0.value)) }
     let newItemArray = try schema.itemArray?.map { try transformAndRegister($0) }
     let newContains = try schema.contains.map { Box(try transformAndRegister($0.value)) }
-    let newAdditionalProperties = try schema.additionalProperties.map { Box(try transformAndRegister($0.value)) }
-    
+    let newAdditionalProperties = try schema.additionalProperties.map {
+      Box(try transformAndRegister($0.value))
+    }
+
     var newPatternProperties: [String: JSONSchema]? = nil
     if let patternProperties = schema.patternProperties {
       var temp: [String: JSONSchema] = [:]
@@ -260,8 +262,8 @@ private final class ReferenceTracker {
   }
 }
 
-private extension String {
-  func dropSuffix(_ suffix: String) -> Substring {
+extension String {
+  fileprivate func dropSuffix(_ suffix: String) -> Substring {
     if hasSuffix(suffix) {
       return prefix(count - suffix.count)
     }
@@ -293,11 +295,13 @@ private func convertToJSONValue(_ val: Any) throws -> JSONValue {
   }
 }
 
-private func sortJSONKeysAlphabetically(_ jsonString: String, prettyPrinted: Bool) throws -> String {
+private func sortJSONKeysAlphabetically(_ jsonString: String, prettyPrinted: Bool) throws -> String
+{
   let data = Data(jsonString.utf8)
   let obj = try JSONSerialization.jsonObject(with: data, options: [])
-  
-  let options: JSONSerialization.WritingOptions = prettyPrinted ? [.prettyPrinted, .sortedKeys] : [.sortedKeys]
+
+  let options: JSONSerialization.WritingOptions =
+    prettyPrinted ? [.prettyPrinted, .sortedKeys] : [.sortedKeys]
   let sortedData = try JSONSerialization.data(withJSONObject: obj, options: options)
   let result = String(decoding: sortedData, as: UTF8.self)
   return result.replacingOccurrences(of: "\\/", with: "/")

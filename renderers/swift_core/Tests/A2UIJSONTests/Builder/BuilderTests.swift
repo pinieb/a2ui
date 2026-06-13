@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import Testing
-import Foundation
 import A2UIJSON
+import Foundation
+import Testing
 
 struct BuilderTests {
 
@@ -38,27 +38,27 @@ struct BuilderTests {
     )
 
     let expected = ##"""
-    {
-      "properties" : {
-        "count" : {
-          "type" : "integer"
-        },
-        "id" : {
-          "type" : "string"
-        },
-        "isActive" : {
-          "type" : "boolean"
-        },
-        "items" : {
-          "items" : {
+      {
+        "properties" : {
+          "count" : {
+            "type" : "integer"
+          },
+          "id" : {
             "type" : "string"
           },
-          "type" : "array"
-        }
-      },
-      "type" : "object"
-    }
-    """##
+          "isActive" : {
+            "type" : "boolean"
+          },
+          "items" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      }
+      """##
     #expect(jsonString == expected)
   }
 
@@ -78,15 +78,15 @@ struct BuilderTests {
     )
 
     let expected = ##"""
-    {
-      "properties" : {
-        "component" : {
-          "$ref" : "https://a2ui.dev/schema/v1/component.json"
-        }
-      },
-      "type" : "object"
-    }
-    """##
+      {
+        "properties" : {
+          "component" : {
+            "$ref" : "https://a2ui.dev/schema/v1/component.json"
+          }
+        },
+        "type" : "object"
+      }
+      """##
     #expect(jsonString == expected)
   }
 
@@ -108,29 +108,28 @@ struct BuilderTests {
     )
 
     let expected = ##"""
-    {
-      "$defs" : {
-        "component" : {
-          "$id" : "https://a2ui.dev/schema/v1/component.json",
-          "properties" : {
-            "id" : {
-              "type" : "string"
-            }
-          },
-          "type" : "object"
-        }
-      },
-      "properties" : {
-        "component" : {
-          "$ref" : "#/$defs/component"
-        }
-      },
-      "type" : "object"
-    }
-    """##
+      {
+        "$defs" : {
+          "component" : {
+            "$id" : "https://a2ui.dev/schema/v1/component.json",
+            "properties" : {
+              "id" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
+          }
+        },
+        "properties" : {
+          "component" : {
+            "$ref" : "#/$defs/component"
+          }
+        },
+        "type" : "object"
+      }
+      """##
     #expect(jsonString == expected)
   }
-
 
   @Test
   func `Required properties are serialized into required array`() throws {
@@ -146,21 +145,21 @@ struct BuilderTests {
     )
 
     let expected = ##"""
-    {
-      "properties" : {
-        "id" : {
-          "type" : "string"
+      {
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
         },
-        "name" : {
-          "type" : "string"
-        }
-      },
-      "required" : [
-        "id"
-      ],
-      "type" : "object"
-    }
-    """##
+        "required" : [
+          "id"
+        ],
+        "type" : "object"
+      }
+      """##
     #expect(jsonString == expected)
   }
 
@@ -184,28 +183,28 @@ struct BuilderTests {
     )
 
     let expected = ##"""
-    {
-      "$defs" : {
-        "component" : {
-          "$id" : "https://a2ui.dev/schema/v1/component.json",
-          "type" : "object"
+      {
+        "$defs" : {
+          "component" : {
+            "$id" : "https://a2ui.dev/schema/v1/component.json",
+            "type" : "object"
+          },
+          "component1" : {
+            "$id" : "https://a2ui.dev/schema/v2/component.json",
+            "type" : "object"
+          }
         },
-        "component1" : {
-          "$id" : "https://a2ui.dev/schema/v2/component.json",
-          "type" : "object"
-        }
-      },
-      "properties" : {
-        "comp1" : {
-          "$ref" : "#/$defs/component"
+        "properties" : {
+          "comp1" : {
+            "$ref" : "#/$defs/component"
+          },
+          "comp2" : {
+            "$ref" : "#/$defs/component1"
+          }
         },
-        "comp2" : {
-          "$ref" : "#/$defs/component1"
-        }
-      },
-      "type" : "object"
-    }
-    """##
+        "type" : "object"
+      }
+      """##
     #expect(jsonString == expected)
   }
 
@@ -227,7 +226,7 @@ struct BuilderTests {
   }
 
   @Test
-  func testFluentDependenciesDSL() throws {
+  func `Fluent dependencies DSL constructs a valid schema and validates it`() throws {
     let schema = JSONSchema.object {
       JSONSchemaProperty.property("creditCard") { JSONSchema.number() }
       JSONSchemaProperty.property("billingAddress") { JSONSchema.string() }
@@ -243,28 +242,28 @@ struct BuilderTests {
     )
 
     let expected = ##"""
-    {
-      "dependencies" : {
-        "creditCard" : [
-          "billingAddress"
-        ]
-      },
-      "properties" : {
-        "billingAddress" : {
-          "type" : "string"
+      {
+        "dependencies" : {
+          "creditCard" : [
+            "billingAddress"
+          ]
         },
-        "creditCard" : {
-          "type" : "number"
-        }
-      },
-      "type" : "object"
-    }
-    """##
+        "properties" : {
+          "billingAddress" : {
+            "type" : "string"
+          },
+          "creditCard" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      }
+      """##
     #expect(jsonString == expected)
 
     let validInstance = JSONValue.object([
       "creditCard": .number(123456),
-      "billingAddress": .string("123 Main St")
+      "billingAddress": .string("123 Main St"),
     ])
     #expect(throws: Never.self) {
       try schema.validate(instance: validInstance)
@@ -279,7 +278,7 @@ struct BuilderTests {
   }
 
   @Test
-  func testFluentPatternPropertiesDSL() throws {
+  func `Fluent patternProperties DSL constructs a valid schema and validates it`() throws {
     let schema = JSONSchema.object()
       .patternProperties {
         JSONSchemaPatternProperty.pattern("^S_", JSONSchema.string())
@@ -293,23 +292,23 @@ struct BuilderTests {
     )
 
     let expected = ##"""
-    {
-      "patternProperties" : {
-        "^I_" : {
-          "type" : "integer"
+      {
+        "patternProperties" : {
+          "^I_" : {
+            "type" : "integer"
+          },
+          "^S_" : {
+            "type" : "string"
+          }
         },
-        "^S_" : {
-          "type" : "string"
-        }
-      },
-      "type" : "object"
-    }
-    """##
+        "type" : "object"
+      }
+      """##
     #expect(jsonString == expected)
 
     let validInstance = JSONValue.object([
       "S_name": .string("Alice"),
-      "I_age": .number(30)
+      "I_age": .number(30),
     ])
     #expect(throws: Never.self) {
       try schema.validate(instance: validInstance)

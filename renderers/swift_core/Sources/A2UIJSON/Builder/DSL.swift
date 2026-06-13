@@ -176,7 +176,8 @@ public struct SchemaObject: SchemaType {
     var propDict: [String: JSONSchema] = [:]
     var reqSet = Set<String>()
     for prop in props {
-      propDict[prop.name] = prop.type as? JSONSchema ?? JSONSchema(allOf: [prop.type as! JSONSchema])
+      propDict[prop.name] =
+        prop.type as? JSONSchema ?? JSONSchema(allOf: [prop.type as! JSONSchema])
       if prop.isRequired {
         reqSet.insert(prop.name)
       }
@@ -185,7 +186,8 @@ public struct SchemaObject: SchemaType {
     if let patternProperties {
       var temp: [String: JSONSchema] = [:]
       for patProp in patternProperties {
-        temp[patProp.pattern] = patProp.type as? JSONSchema ?? JSONSchema(allOf: [patProp.type as! JSONSchema])
+        temp[patProp.pattern] =
+          patProp.type as? JSONSchema ?? JSONSchema(allOf: [patProp.type as! JSONSchema])
       }
       patternDict = temp
     }
@@ -209,7 +211,8 @@ public struct SchemaObject: SchemaType {
     var propDict: [String: JSONSchema] = [:]
     var reqSet = Set<String>()
     for prop in props {
-      propDict[prop.name] = prop.type as? JSONSchema ?? JSONSchema(allOf: [prop.type as! JSONSchema])
+      propDict[prop.name] =
+        prop.type as? JSONSchema ?? JSONSchema(allOf: [prop.type as! JSONSchema])
       if prop.isRequired {
         reqSet.insert(prop.name)
       }
@@ -218,7 +221,8 @@ public struct SchemaObject: SchemaType {
     if let patternProperties {
       var temp: [String: JSONSchema] = [:]
       for patProp in patternProperties {
-        temp[patProp.pattern] = patProp.type as? JSONSchema ?? JSONSchema(allOf: [patProp.type as! JSONSchema])
+        temp[patProp.pattern] =
+          patProp.type as? JSONSchema ?? JSONSchema(allOf: [patProp.type as! JSONSchema])
       }
       patternDict = temp
     }
@@ -227,7 +231,9 @@ public struct SchemaObject: SchemaType {
       properties: propDict,
       omitType: omitType,
       required: reqSet.isEmpty ? nil : reqSet,
-      additionalProperties: additionalProperties.map { Box($0 as? JSONSchema ?? JSONSchema(allOf: [$0 as! JSONSchema])) },
+      additionalProperties: additionalProperties.map {
+        Box($0 as? JSONSchema ?? JSONSchema(allOf: [$0 as! JSONSchema]))
+      },
       patternProperties: patternDict
     )
   }
@@ -251,11 +257,14 @@ public struct JSONSchemaDependency: Sendable {
     JSONSchemaDependency(triggerKey: triggerKey, dependency: .property(keys))
   }
 
-  public static func dependency(_ triggerKey: String, _ schema: JSONSchema) -> JSONSchemaDependency {
+  public static func dependency(_ triggerKey: String, _ schema: JSONSchema) -> JSONSchemaDependency
+  {
     JSONSchemaDependency(triggerKey: triggerKey, dependency: .schema(schema))
   }
 
-  public static func dependency(_ triggerKey: String, _ builder: () -> JSONSchema) -> JSONSchemaDependency {
+  public static func dependency(_ triggerKey: String, _ builder: () -> JSONSchema)
+    -> JSONSchemaDependency
+  {
     JSONSchemaDependency(triggerKey: triggerKey, dependency: .schema(builder()))
   }
 }
@@ -280,17 +289,23 @@ public struct JSONSchemaPatternProperty: Sendable {
     JSONSchemaPatternProperty(pattern: pattern, schema: schema)
   }
 
-  public static func pattern(_ pattern: String, _ builder: () -> JSONSchema) -> JSONSchemaPatternProperty {
+  public static func pattern(_ pattern: String, _ builder: () -> JSONSchema)
+    -> JSONSchemaPatternProperty
+  {
     JSONSchemaPatternProperty(pattern: pattern, schema: builder())
   }
 }
 
 @resultBuilder
 public struct JSONSchemaPatternPropertyBuilder: Sendable {
-  public static func buildExpression(_ expression: JSONSchemaPatternProperty) -> JSONSchemaPatternProperty {
+  public static func buildExpression(_ expression: JSONSchemaPatternProperty)
+    -> JSONSchemaPatternProperty
+  {
     expression
   }
-  public static func buildBlock(_ components: JSONSchemaPatternProperty...) -> [JSONSchemaPatternProperty] {
+  public static func buildBlock(_ components: JSONSchemaPatternProperty...)
+    -> [JSONSchemaPatternProperty]
+  {
     Array(components)
   }
 }
@@ -318,4 +333,3 @@ extension JSONSchema {
     return mutatingCopy(patternProperties: dict)
   }
 }
-

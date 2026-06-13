@@ -244,7 +244,8 @@ struct ParserTests {
     let implicitObjectOutput = try implicitObjectSchema.validate(instance: stringInstance)
     #expect(implicitObjectOutput.instance == stringInstance)
 
-    let implicitArraySchema = JSONSchema(types: [.array], items: Box(JSONSchema.string()), omitType: true)
+    let implicitArraySchema = JSONSchema(
+      types: [.array], items: Box(JSONSchema.string()), omitType: true)
     let implicitArrayOutput = try implicitArraySchema.validate(instance: stringInstance)
     #expect(implicitArrayOutput.instance == stringInstance)
 
@@ -256,7 +257,8 @@ struct ParserTests {
       try explicitObjectSchema.validate(instance: stringInstance)
     }
 
-    let explicitArraySchema = JSONSchema(types: [.array], items: Box(JSONSchema.string()), omitType: false)
+    let explicitArraySchema = JSONSchema(
+      types: [.array], items: Box(JSONSchema.string()), omitType: false)
     #expect(throws: ValidationError.self) {
       try explicitArraySchema.validate(instance: stringInstance)
     }
@@ -311,7 +313,7 @@ struct ParserTests {
       .number(1),
       .number(2),
       .array([.string("a")]),
-      .array([.string("b")])
+      .array([.string("b")]),
     ])
     _ = try schema.validate(instance: distinctInstance)
 
@@ -320,7 +322,7 @@ struct ParserTests {
       .number(1),
       .array([.string("a")]),
       .number(2),
-      .array([.string("a")])
+      .array([.string("a")]),
     ])
     #expect(throws: ValidationError.self) {
       try schema.validate(instance: duplicateInstance)
@@ -343,14 +345,14 @@ struct ParserTests {
     // Valid instance: additional property is an integer
     let validInstance = JSONValue.object([
       "name": .string("Alice"),
-      "age": .number(30)
+      "age": .number(30),
     ])
     _ = try schema.validate(instance: validInstance)
 
     // Invalid instance: additional property is a string
     let invalidInstance = JSONValue.object([
       "name": .string("Alice"),
-      "role": .string("admin")
+      "role": .string("admin"),
     ])
     #expect(throws: ValidationError.self) {
       try schema.validate(instance: invalidInstance)
@@ -426,7 +428,7 @@ struct ParserTests {
     // "baro" matches "o$" (integer) -> valid
     let validInstance = JSONValue.object([
       "fiz": .string("hello"),
-      "baro": .number(123.0)
+      "baro": .number(123.0),
     ])
     _ = try schema.validate(instance: validInstance)
 
@@ -569,7 +571,7 @@ struct ParserTests {
   }
 
   @Test
-  func testRecursiveSchemaDSL() throws {
+  func `Recursive schema DSL constructs and validates correctly`() throws {
     final class SchemaRefBox: @unchecked Sendable {
       var schema: JSONSchema!
     }
@@ -588,8 +590,8 @@ struct ParserTests {
         "value": .number(2),
         "next": .object([
           "value": .number(3)
-        ])
-      ])
+        ]),
+      ]),
     ])
     _ = try nodeSchema.validate(instance: validInstance)
 
@@ -600,17 +602,17 @@ struct ParserTests {
         "value": .number(2),
         "next": .object([
           "value": .string("not-an-integer")
-        ])
-      ])
+        ]),
+      ]),
     ])
-    
+
     #expect(throws: ValidationError.self) {
       try nodeSchema.validate(instance: invalidInstance)
     }
   }
 
   @Test
-  func testDraft202012ArrayPrefixItemsAndItems() throws {
+  func `Draft 2020-12 array prefixItems and items validate correctly`() throws {
     let schemaJson = """
       {
         "type": "array",
@@ -622,15 +624,17 @@ struct ParserTests {
       }
       """
     let schema = try JSONSchema.parse(schemaJson)
-    
+
     let valid = JSONValue.array([.string("hello"), .number(42), .boolean(true), .boolean(false)])
     _ = try schema.validate(instance: valid)
-    
-    let invalidUniform = JSONValue.array([.string("hello"), .number(42), .boolean(true), .string("invalid")])
+
+    let invalidUniform = JSONValue.array([
+      .string("hello"), .number(42), .boolean(true), .string("invalid"),
+    ])
     #expect(throws: ValidationError.self) {
       try schema.validate(instance: invalidUniform)
     }
-    
+
     let invalidPrefix = JSONValue.array([.number(123), .number(42)])
     #expect(throws: ValidationError.self) {
       try schema.validate(instance: invalidPrefix)
@@ -638,7 +642,7 @@ struct ParserTests {
   }
 
   @Test
-  func testDraft202012ArrayMinMaxContains() throws {
+  func `Draft 2020-12 array minContains and maxContains validate correctly`() throws {
     let schemaJson = """
       {
         "type": "array",
@@ -648,18 +652,18 @@ struct ParserTests {
       }
       """
     let schema = try JSONSchema.parse(schemaJson)
-    
+
     let valid2 = JSONValue.array([.string("a"), .number(1), .string("b"), .number(2)])
     _ = try schema.validate(instance: valid2)
-    
+
     let valid3 = JSONValue.array([.number(1), .number(2), .number(3)])
     _ = try schema.validate(instance: valid3)
-    
+
     let invalidTooFew = JSONValue.array([.number(1), .string("a"), .string("b")])
     #expect(throws: ValidationError.self) {
       try schema.validate(instance: invalidTooFew)
     }
-    
+
     let invalidTooMany = JSONValue.array([.number(1), .number(2), .number(3), .number(4)])
     #expect(throws: ValidationError.self) {
       try schema.validate(instance: invalidTooMany)
@@ -667,7 +671,7 @@ struct ParserTests {
   }
 
   @Test
-  func testDraft202012ObjectDependentRequiredAndDependentSchemas() throws {
+  func `Draft 2020-12 object dependentRequired and dependentSchemas validate correctly`() throws {
     let schemaJson = """
       {
         "type": "object",
@@ -685,34 +689,34 @@ struct ParserTests {
       }
       """
     let schema = try JSONSchema.parse(schemaJson)
-    
+
     let validRequired = JSONValue.object([
       "credit_card": .string("1234-5678"),
-      "billing_address": .string("123 Main St")
+      "billing_address": .string("123 Main St"),
     ])
     _ = try schema.validate(instance: validRequired)
-    
+
     let invalidRequired = JSONValue.object([
       "credit_card": .string("1234-5678")
     ])
     #expect(throws: ValidationError.self) {
       try schema.validate(instance: invalidRequired)
     }
-    
+
     let validSchema = JSONValue.object([
       "special_user": .boolean(true),
-      "clearance_level": .number(6)
+      "clearance_level": .number(6),
     ])
     _ = try schema.validate(instance: validSchema)
-    
+
     let invalidSchemaValue = JSONValue.object([
       "special_user": .boolean(true),
-      "clearance_level": .number(3)
+      "clearance_level": .number(3),
     ])
     #expect(throws: ValidationError.self) {
       try schema.validate(instance: invalidSchemaValue)
     }
-    
+
     let invalidSchemaMissing = JSONValue.object([
       "special_user": .boolean(true)
     ])
@@ -722,7 +726,7 @@ struct ParserTests {
   }
 
   @Test
-  func testDraft202012DynamicPointerResolving() throws {
+  func `Draft 2020-12 dynamic anchor and pointer resolving works`() throws {
     let schemaJson = """
       {
         "type": "object",
@@ -742,23 +746,23 @@ struct ParserTests {
       }
       """
     let schema = try JSONSchema.parse(schemaJson)
-    
+
     let valid = JSONValue.object([
       "user": .object([
         "name": .string("Alice"),
         "friend": .object([
           "name": .string("Bob")
-        ])
+        ]),
       ])
     ])
     _ = try schema.validate(instance: valid)
-    
+
     let invalid = JSONValue.object([
       "user": .object([
         "name": .string("Alice"),
         "friend": .object([
           "friend_name": .string("Bob")
-        ])
+        ]),
       ])
     ])
     #expect(throws: ValidationError.self) {
@@ -767,18 +771,18 @@ struct ParserTests {
   }
 
   @Test
-  func testStrictUnicodeCodepointComparison() throws {
+  func `Strict Unicode codepoint comparison works`() throws {
     let decomposed = "cafe\u{301}"
     let precomposed = "café"
-    
+
     let valDecomposed = JSONValue.string(decomposed)
     let valPrecomposed = JSONValue.string(precomposed)
-    
+
     #expect(valDecomposed != valPrecomposed)
   }
 
   @Test
-  func testDiagnoseActionSchemaCrash() throws {
+  func `Diagnose action schema crash resolves correctly`() throws {
     let event = JSONValue.object([
       "event": .object([
         "name": .string("click"),
@@ -789,70 +793,70 @@ struct ParserTests {
   }
 
   @Test
-  func testDraft202012DynamicReferencing() throws {
+  func `Draft 2020-12 dynamic referencing works`() throws {
     let schemaJson = """
-    {
-      "$id": "https://example.com/root",
-      "$defs": {
-        "tree": {
-          "$id": "https://example.com/tree",
-          "$dynamicAnchor": "node",
-          "type": "object",
-          "properties": {
-            "value": true,
-            "children": {
-              "type": "array",
-              "items": { "$dynamicRef": "#node" }
+      {
+        "$id": "https://example.com/root",
+        "$defs": {
+          "tree": {
+            "$id": "https://example.com/tree",
+            "$dynamicAnchor": "node",
+            "type": "object",
+            "properties": {
+              "value": true,
+              "children": {
+                "type": "array",
+                "items": { "$dynamicRef": "#node" }
+              }
             }
-          }
-        },
-        "intTree": {
-          "$id": "https://example.com/int-tree",
-          "$dynamicAnchor": "node",
-          "$ref": "https://example.com/tree",
-          "properties": {
-            "value": { "type": "integer" }
+          },
+          "intTree": {
+            "$id": "https://example.com/int-tree",
+            "$dynamicAnchor": "node",
+            "$ref": "https://example.com/tree",
+            "properties": {
+              "value": { "type": "integer" }
+            }
           }
         }
       }
-    }
-    """
+      """
     let rootSchema = try JSONSchema.parse(schemaJson)
-    
+
     // Resolve the specialized integer-tree schema
     guard let intTreeSchema = rootSchema.resolvePointer("#/$defs/intTree") else {
       Issue.record("Failed to resolve intTree schema")
       return
     }
-    
+
     // Valid instance (all values are integers)
     let validInstance = JSONValue.object([
       "value": .number(1),
       "children": .array([
         .object([
           "value": .number(2),
-          "children": .array([])
+          "children": .array([]),
         ])
-      ])
+      ]),
     ])
-    
+
     _ = try intTreeSchema.validate(instance: validInstance)
-    
+
     // Invalid instance (child value is a string, which violates the specialized tree constraint)
     let invalidInstance = JSONValue.object([
       "value": .number(1),
       "children": .array([
         .object([
           "value": .string("not-an-integer"),
-          "children": .array([])
+          "children": .array([]),
         ])
-      ])
+      ]),
     ])
-    
+
     #expect(throws: ValidationError.self) {
       try intTreeSchema.validate(instance: invalidInstance)
     }
-    
+
     // If we validate using the generic tree schema directly, it should pass because "value" can be anything
     guard let genericTreeSchema = rootSchema.resolvePointer("#/$defs/tree") else {
       Issue.record("Failed to resolve generic tree schema")
@@ -862,46 +866,195 @@ struct ParserTests {
   }
 
   @Test
-  func testDraft202012LexicalScoping() throws {
+  func `Draft 2020-12 lexical scoping works`() throws {
     let schemaJson = """
-    {
-      "$id": "https://example.com/root",
-      "properties": {
-        "sub": {
-          "$id": "folder/",
-          "properties": {
-            "leaf": {
-              "$id": "file.json",
-              "type": "string"
-            },
-            "inherited": {
-              "type": "integer"
+      {
+        "$id": "https://example.com/root",
+        "properties": {
+          "sub": {
+            "$id": "folder/",
+            "properties": {
+              "leaf": {
+                "$id": "file.json",
+                "type": "string"
+              },
+              "inherited": {
+                "type": "integer"
+              }
             }
           }
         }
       }
-    }
-    """
+      """
     let schema = try JSONSchema.parse(schemaJson)
-    
+
     #expect(schema.resolvedBaseURI?.absoluteString == "https://example.com/root")
-    
+
     guard let subSchema = schema.properties?["sub"] else {
       Issue.record("Missing subSchema")
       return
     }
     #expect(subSchema.resolvedBaseURI?.absoluteString == "https://example.com/folder/")
-    
+
     guard let leafSchema = subSchema.properties?["leaf"] else {
       Issue.record("Missing leafSchema")
       return
     }
     #expect(leafSchema.resolvedBaseURI?.absoluteString == "https://example.com/folder/file.json")
-    
+
     guard let inheritedSchema = subSchema.properties?["inherited"] else {
       Issue.record("Missing inheritedSchema")
       return
     }
     #expect(inheritedSchema.resolvedBaseURI?.absoluteString == "https://example.com/folder/")
+  }
+
+  @Test
+  func `Metaschemas loading and validation works`() throws {
+    let wellKnown = JSONSchema.wellKnownSchemas
+    #expect(wellKnown.count == 9)
+    for (url, _) in wellKnown {
+      print("Well-known schema loaded: \(url)")
+    }
+
+    // Validate an invalid schema definition against the metaschema
+    guard let metaschema = wellKnown[URL(string: "https://json-schema.org/draft/2020-12/schema")!]
+    else {
+      Issue.record("Metaschema not found in wellKnownSchemas")
+      return
+    }
+
+    let invalidSchemaJson = """
+      {
+        "$defs": {
+          "foo": {
+            "type": 1
+          }
+        }
+      }
+      """
+    let invalidSchemaValue = try JSONDecoder().decode(
+      JSONValue.self, from: Data(invalidSchemaJson.utf8))
+
+    do {
+      _ = try metaschema.validate(instance: invalidSchemaValue)
+      Issue.record("Metaschema should have rejected the invalid schema definition!")
+    } catch {
+      print("Successfully caught invalid schema: \(error)")
+    }
+  }
+
+  @Test
+  func `strict-tree schema guards against misspelled properties`() throws {
+    let treeSchemaJson = """
+      {
+        "description": "tree schema, extensible",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "http://localhost:1234/draft2020-12/tree.json",
+        "$dynamicAnchor": "node",
+        "type": "object",
+        "properties": {
+          "data": true,
+          "children": {
+            "type": "array",
+            "items": {
+              "$dynamicRef": "#node"
+            }
+          }
+        }
+      }
+      """
+    let strictTreeSchemaJson = """
+      {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "http://localhost:1234/draft2020-12/strict-tree.json",
+        "$dynamicAnchor": "node",
+        "$ref": "tree.json",
+        "unevaluatedProperties": false
+      }
+      """
+
+    // Parse tree.json and register it in dynamicRegistry
+    let treeSchema = try JSONSchema.parse(treeSchemaJson)
+    JSONSchema.dynamicRegistry[URL(string: "http://localhost:1234/draft2020-12/tree.json")!] =
+      treeSchema
+
+    // Parse strict-tree.json
+    let strictTreeSchema = try JSONSchema.parse(strictTreeSchemaJson)
+
+    // Test instance 1: correct fields
+    let validInstanceJson = """
+      {
+        "children": [
+          {
+            "data": 1
+          }
+        ]
+      }
+      """
+    let validInstance = try JSONDecoder().decode(JSONValue.self, from: Data(validInstanceJson.utf8))
+    let validOutput = try strictTreeSchema.validate(instance: validInstance)
+    #expect(validOutput.matchedSchemaIDs.count > 0)
+
+    // Test instance 2: misspelled field inside children
+    let invalidInstanceJson = """
+      {
+        "children": [
+          {
+            "daat": 1
+          }
+        ]
+      }
+      """
+    let invalidInstance = try JSONDecoder().decode(
+      JSONValue.self, from: Data(invalidInstanceJson.utf8))
+
+    do {
+      _ = try strictTreeSchema.validate(instance: invalidInstance)
+      Issue.record("Should have failed validation due to unevaluated property 'daat'!")
+    } catch {
+      print("Successfully caught unevaluated property: \(error)")
+    }
+  }
+
+  @Test
+  func `same anchor with different base uri`() throws {
+    let schemaJson = """
+      {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "http://localhost:1234/draft2020-12/foobar",
+        "$defs": {
+          "A": {
+            "$id": "child1",
+            "allOf": [
+              {
+                "$id": "child2",
+                "$anchor": "my_anchor",
+                "type": "number"
+              },
+              {
+                "$anchor": "my_anchor",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "$ref": "child1#my_anchor"
+      }
+      """
+
+    let schema = try JSONSchema.parse(schemaJson)
+
+    // Instance "a" should be VALID (since it should resolve to allOf/1: type string)
+    let validOutput = try schema.validate(instance: .string("a"))
+    #expect(validOutput.matchedSchemaIDs.count > 0)
+
+    // Instance 1 should be INVALID
+    do {
+      _ = try schema.validate(instance: .number(1))
+      Issue.record("Should have failed validation for integer 1!")
+    } catch {
+      print("Successfully caught invalid type: \(error)")
+    }
   }
 }

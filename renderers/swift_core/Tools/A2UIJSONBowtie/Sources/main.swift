@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import Foundation
 import A2UIJSON
+import Foundation
 
 #if canImport(Glibc)
-import Glibc
+  import Glibc
 #elseif canImport(Darwin)
-import Darwin
+  import Darwin
 #endif
 
 nonisolated(unsafe) let swiftStdout = fdopen(1, "w")!
@@ -58,6 +58,7 @@ struct BowtieTestCase: Decodable {
   let description: String
   let schema: JSONValue
   let tests: [BowtieTest]
+  let registry: [String: JSONValue]?
 }
 
 struct BowtieTest: Decodable {
@@ -106,14 +107,19 @@ struct ErrorContext: Encodable {
 @main
 struct BowtieHarness {
   static func main() {
+    fputs(
+      "=== BowtieHarness starting. Well-known schemas count: \(JSONSchema.wellKnownSchemas.count) ===\n",
+      swiftStderr)
+    fflush(swiftStderr)
+
     let decoder = JSONDecoder()
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.withoutEscapingSlashes]
-    
+
     // Read line by line from stdin
     while let line = readLine() {
       guard let data = line.data(using: .utf8) else { continue }
-      
+
       do {
         let request = try decoder.decode(BowtieRequest.self, from: data)
         switch request.cmd {
@@ -133,19 +139,19 @@ struct BowtieHarness {
             )
           )
           sendResponse(response, encoder: encoder)
-          
+
         case "dialect":
           let isSupported = request.dialect == "https://json-schema.org/draft/2020-12/schema"
           let response = DialectResponse(ok: isSupported)
           sendResponse(response, encoder: encoder)
-          
+
         case "run":
           guard let seq = request.seq, let testCase = request.case else { continue }
           handleRun(seq: seq, testCase: testCase, encoder: encoder)
-          
+
         case "stop":
           exit(0)
-          
+
         default:
           break
         }
@@ -155,11 +161,29 @@ struct BowtieHarness {
       }
     }
   }
-  
+
   static func handleRun(seq: Int, testCase: BowtieTestCase, encoder: JSONEncoder) {
+    // Clear dynamic registry for the new run
+    JSONSchema.dynamicRegistry.removeAll()
+
+    // Populate dynamic registry from the test case's registry
+    if let registry = testCase.registry {
+      for (urlStr, schemaVal) in registry {
+        guard let url = URL(string: urlStr),
+          let schemaData = try? encoder.encode(schemaVal),
+          let schemaString = String(data: schemaData, encoding: .utf8),
+          let schema = try? JSONSchema.parse(schemaString)
+        else {
+          continue
+        }
+        JSONSchema.dynamicRegistry[url] = schema
+      }
+    }
+
     // 1. Serialize the schema JSONValue to a string
     guard let schemaData = try? encoder.encode(testCase.schema),
-          let schemaString = String(data: schemaData, encoding: .utf8) else {
+      let schemaString = String(data: schemaData, encoding: .utf8)
+    else {
       let response = RunErroredResponse(
         seq: seq,
         errored: true,
@@ -168,7 +192,7 @@ struct BowtieHarness {
       sendResponse(response, encoder: encoder)
       return
     }
-    
+
     // 2. Parse the schema string
     let schema: SchemaType
     do {
@@ -182,7 +206,7 @@ struct BowtieHarness {
       sendResponse(response, encoder: encoder)
       return
     }
-    
+
     // 3. Validate each instance
     var results: [TestResult] = []
     for test in testCase.tests {
@@ -201,15 +225,16 @@ struct BowtieHarness {
         return
       }
     }
-    
+
     // 4. Send success response
     let response = RunSuccessResponse(seq: seq, results: results)
     sendResponse(response, encoder: encoder)
   }
-  
+
   static func sendResponse<T: Encodable>(_ response: T, encoder: JSONEncoder) {
     if let data = try? encoder.encode(response),
-       var responseString = String(data: data, encoding: .utf8) {
+      var responseString = String(data: data, encoding: .utf8)
+    {
       responseString.append("\n")
       fputs(responseString, swiftStdout)
       fflush(swiftStdout)

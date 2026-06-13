@@ -18,13 +18,12 @@ extension A2UICommonSchema {
   public static let childList: JSONSchema = JSONSchema.anyOf {
     JSONSchema.array { JSONSchema.reference(A2UICommonSchema.componentID) }
     JSONSchema.object {
-      JSONSchemaProperty.property("componentId", isRequired: true) { JSONSchema.reference(A2UICommonSchema.componentID) }
+      JSONSchemaProperty.property("componentId", isRequired: true) {
+        JSONSchema.reference(A2UICommonSchema.componentID)
+      }
       JSONSchemaProperty.property("path", isRequired: true) { JSONSchema.string() }
     }
   }
 }
-
-
-
 
 // Note: We intentionally don't wrap this schema in a stub(uri:...) to preserve the historical flat array/object shape representation.

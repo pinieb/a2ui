@@ -19,7 +19,9 @@ extension A2UICommonSchema {
     uri: A2UICommonSchema.uri(for: "AccessibilityAttributesSchema"),
     localSchema: JSONSchema.object {
       JSONSchemaProperty.property("label") { JSONSchema.reference(A2UICommonSchema.dynamicString) }
-      JSONSchemaProperty.property("description") { JSONSchema.reference(A2UICommonSchema.dynamicString) }
+      JSONSchemaProperty.property("description") {
+        JSONSchema.reference(A2UICommonSchema.dynamicString)
+      }
     }
   )
 }

@@ -34,7 +34,7 @@ public enum JSONSchemaType: String, Codable, Sendable {
 public enum Dependency: Codable, Equatable, Sendable {
   case property([String])
   case schema(JSONSchema)
-  
+
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
     if let stringArray = try? container.decode([String].self) {
@@ -48,7 +48,7 @@ public enum Dependency: Codable, Equatable, Sendable {
       )
     }
   }
-  
+
   public func encode(to encoder: Encoder) throws {
     var container = encoder.singleValueContainer()
     switch self {
@@ -83,7 +83,7 @@ public final class Box<Val: Codable & Equatable & Sendable>: Codable, Equatable,
 public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendable {
   // Core Types
   public let types: Set<JSONSchemaType>?
-  
+
   // Object / Array Properties
   public let properties: [String: JSONSchema]?
   public let items: Box<JSONSchema>?
@@ -127,11 +127,15 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
   public let defs: [String: JSONSchema]?
   public let unevaluatedProperties: Box<JSONSchema>?
   public let unevaluatedItems: Box<JSONSchema>?
+  public let anchor: String?
   public let dynamicAnchor: String?
   public let dynamicRef: String?
+  public let format: String?
+  public let vocabulary: [String: Bool]?
+  public let schema: String?
   public internal(set) var resolvedBaseURI: URL?
+  public internal(set) var retrievalURI: URL? = nil
   public weak var parent: JSONSchema? = nil
-
 
   // Applicators
   public let allOf: [JSONSchema]?
@@ -163,7 +167,7 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     }
     return nil
   }
-  
+
   // Custom boolean schema representation (true/false)
   public let isBooleanSchema: Bool?
   public let booleanSchemaValue: Bool?
@@ -219,9 +223,14 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     defs: [String: JSONSchema]? = nil,
     unevaluatedProperties: Box<JSONSchema>? = nil,
     unevaluatedItems: Box<JSONSchema>? = nil,
+    anchor: String? = nil,
     dynamicAnchor: String? = nil,
-    dynamicRef: String? = nil
+    dynamicRef: String? = nil,
+    format: String? = nil,
+    vocabulary: [String: Bool]? = nil,
+    schema: String? = nil
   ) {
+    self.schema = schema
     self.types = types
     self.properties = properties
     self.items = items
@@ -284,8 +293,11 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     self.defs = defs
     self.unevaluatedProperties = unevaluatedProperties
     self.unevaluatedItems = unevaluatedItems
+    self.anchor = anchor
     self.dynamicAnchor = dynamicAnchor
     self.dynamicRef = dynamicRef
+    self.format = format
+    self.vocabulary = vocabulary
     self.resolvedBaseURI = nil
   }
 
@@ -340,8 +352,12 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     self.defs = nil
     self.unevaluatedProperties = nil
     self.unevaluatedItems = nil
+    self.anchor = nil
     self.dynamicAnchor = nil
     self.dynamicRef = nil
+    self.format = nil
+    self.vocabulary = nil
+    self.schema = nil
     self.resolvedBaseURI = nil
   }
 
@@ -390,8 +406,12 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     case definitions
     case unevaluatedProperties
     case unevaluatedItems
+    case anchor = "$anchor"
     case dynamicAnchor = "$dynamicAnchor"
     case dynamicRef = "$dynamicRef"
+    case format
+    case vocabulary = "$vocabulary"
+    case schema = "$schema"
   }
 
   public init(from decoder: Decoder) throws {
@@ -447,8 +467,12 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
         self.defs = nil
         self.unevaluatedProperties = nil
         self.unevaluatedItems = nil
+        self.anchor = nil
         self.dynamicAnchor = nil
         self.dynamicRef = nil
+        self.format = nil
+        self.vocabulary = nil
+        self.schema = nil
         self.resolvedBaseURI = nil
         return
       }
@@ -518,10 +542,12 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
       self.required = nil
     }
 
-    if let additionalPropsContainer = try? container.decode(RawAdditionalProperties.self, forKey: .additionalProperties) {
+    if let additionalPropsContainer = try? container.decode(
+      RawAdditionalProperties.self, forKey: .additionalProperties)
+    {
       switch additionalPropsContainer {
       case .boolean(let allowed):
-        self.additionalProperties = allowed ? nil : Box(JSONSchema(booleanSchema: false))
+        self.additionalProperties = Box(JSONSchema(booleanSchema: allowed))
       case .schema(let schema):
         self.additionalProperties = Box(schema)
       }
@@ -529,9 +555,11 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
       self.additionalProperties = nil
     }
 
-    self.patternProperties = try container.decodeIfPresent([String: JSONSchema].self, forKey: .patternProperties)
+    self.patternProperties = try container.decodeIfPresent(
+      [String: JSONSchema].self, forKey: .patternProperties)
     self.propertyNames = try container.decodeIfPresent(Box<JSONSchema>.self, forKey: .propertyNames)
-    self.dependencies = try container.decodeIfPresent([String: Dependency].self, forKey: .dependencies)
+    self.dependencies = try container.decodeIfPresent(
+      [String: Dependency].self, forKey: .dependencies)
 
     self.allOf = try container.decodeIfPresent([JSONSchema].self, forKey: .allOf)
     self.anyOf = try container.decodeIfPresent([JSONSchema].self, forKey: .anyOf)
@@ -554,8 +582,11 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
 
     // Draft 2020-12
     self.prefixItems = try container.decodeIfPresent([JSONSchema].self, forKey: .prefixItems)
-    self.dependentSchemas = try container.decodeIfPresent([String: JSONSchema].self, forKey: .dependentSchemas)
-    if let depReq = try container.decodeIfPresent([String: [String]].self, forKey: .dependentRequired) {
+    self.dependentSchemas = try container.decodeIfPresent(
+      [String: JSONSchema].self, forKey: .dependentSchemas)
+    if let depReq = try container.decodeIfPresent(
+      [String: [String]].self, forKey: .dependentRequired)
+    {
       self.dependentRequired = depReq.mapValues { Set($0) }
     } else {
       self.dependentRequired = nil
@@ -564,17 +595,26 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     self.maxContains = try container.decodeIfPresent(Int.self, forKey: .maxContains)
 
     let parsedDefs = try container.decodeIfPresent([String: JSONSchema].self, forKey: .defs)
-    let parsedDefinitions = try container.decodeIfPresent([String: JSONSchema].self, forKey: .definitions)
+    let parsedDefinitions = try container.decodeIfPresent(
+      [String: JSONSchema].self, forKey: .definitions)
     self.defs = parsedDefs ?? parsedDefinitions
 
-    self.unevaluatedProperties = try container.decodeIfPresent(Box<JSONSchema>.self, forKey: .unevaluatedProperties)
-    self.unevaluatedItems = try container.decodeIfPresent(Box<JSONSchema>.self, forKey: .unevaluatedItems)
+    self.unevaluatedProperties = try container.decodeIfPresent(
+      Box<JSONSchema>.self, forKey: .unevaluatedProperties)
+    self.unevaluatedItems = try container.decodeIfPresent(
+      Box<JSONSchema>.self, forKey: .unevaluatedItems)
+    self.anchor = try container.decodeIfPresent(String.self, forKey: .anchor)
     self.dynamicAnchor = try container.decodeIfPresent(String.self, forKey: .dynamicAnchor)
     self.dynamicRef = try container.decodeIfPresent(String.self, forKey: .dynamicRef)
+    self.format = try container.decodeIfPresent(String.self, forKey: .format)
+    self.vocabulary = try container.decodeIfPresent([String: Bool].self, forKey: .vocabulary)
+    self.schema = try container.decodeIfPresent(String.self, forKey: .schema)
     self.resolvedBaseURI = nil
   }
 
-  private static func decodeConstValue(from container: KeyedDecodingContainer<CodingKeys>) throws -> JSONValue? {
+  private static func decodeConstValue(from container: KeyedDecodingContainer<CodingKeys>) throws
+    -> JSONValue?
+  {
     guard container.contains(.const) else { return nil }
     if try container.decodeNil(forKey: .const) {
       return .null
@@ -582,7 +622,9 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     return try container.decode(JSONValue.self, forKey: .const)
   }
 
-  private static func decodeEnumValue(from container: KeyedDecodingContainer<CodingKeys>) throws -> [JSONValue]? {
+  private static func decodeEnumValue(from container: KeyedDecodingContainer<CodingKeys>) throws
+    -> [JSONValue]?
+  {
     guard container.contains(.enum) else { return nil }
     if try container.decodeNil(forKey: .enum) {
       return nil
@@ -605,6 +647,10 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
 
     if let id {
       try container.encode(id, forKey: .id)
+    }
+
+    if let schema {
+      try container.encode(schema, forKey: .schema)
     }
 
     if let types, !omitType {
@@ -650,7 +696,9 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     }
 
     if let additionalProperties {
-      if additionalProperties.value.isBooleanSchema == true && additionalProperties.value.booleanSchemaValue == false {
+      if additionalProperties.value.isBooleanSchema == true
+        && additionalProperties.value.booleanSchemaValue == false
+      {
         try container.encode(false, forKey: .additionalProperties)
       } else {
         try container.encode(additionalProperties, forKey: .additionalProperties)
@@ -693,8 +741,11 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     }
     try container.encodeIfPresent(unevaluatedProperties, forKey: .unevaluatedProperties)
     try container.encodeIfPresent(unevaluatedItems, forKey: .unevaluatedItems)
+    try container.encodeIfPresent(anchor, forKey: .anchor)
     try container.encodeIfPresent(dynamicAnchor, forKey: .dynamicAnchor)
     try container.encodeIfPresent(dynamicRef, forKey: .dynamicRef)
+    try container.encodeIfPresent(format, forKey: .format)
+    try container.encodeIfPresent(vocabulary, forKey: .vocabulary)
   }
 
   public static func == (lhs: JSONSchema, rhs: JSONSchema) -> Bool {
@@ -735,6 +786,7 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     if lhs.enum != rhs.enum { return false }
     if lhs.ref != rhs.ref { return false }
     if lhs.id != rhs.id { return false }
+    if lhs.schema != rhs.schema { return false }
 
     // Draft 2020-12
     if lhs.prefixItems != rhs.prefixItems { return false }
@@ -745,10 +797,13 @@ public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendab
     if lhs.defs != rhs.defs { return false }
     if lhs.unevaluatedProperties != rhs.unevaluatedProperties { return false }
     if lhs.unevaluatedItems != rhs.unevaluatedItems { return false }
+    if lhs.anchor != rhs.anchor { return false }
     if lhs.dynamicAnchor != rhs.dynamicAnchor { return false }
     if lhs.dynamicRef != rhs.dynamicRef { return false }
+    if lhs.format != rhs.format { return false }
+    if lhs.vocabulary != rhs.vocabulary { return false }
     if lhs.resolvedBaseURI != rhs.resolvedBaseURI { return false }
- 
+
     return true
   }
 }
@@ -846,7 +901,11 @@ private enum RawAdditionalProperties: Codable, Sendable {
 
 extension JSONSchema {
   public func validate(instance: JSONValue) throws -> ValidationOutput {
-    try validate(instance: instance, visitingSchemas: [], rootSchema: self, dynamicScope: [self])
+    if let idStr = self.id, let idURL = URL(string: idStr) {
+      JSONSchema.dynamicRegistry[idURL] = self
+    }
+    return try validate(
+      instance: instance, visitingSchemas: [], rootSchema: self, dynamicScope: [self])
   }
 
   private func validate(
@@ -880,48 +939,102 @@ extension JSONSchema {
     }
     docRoot = curr
 
-    if let dRef = resolvedDynamicRef {
-      actualRef = dRef
-      let anchorName = dRef.replacingOccurrences(of: "#", with: "")
-      
-      // Walk dynamic scope forwards to find matching dynamicAnchor (outer-most first)
-      for schema in dynamicScope {
-        if let matched = schema.findSchema(byAnchor: anchorName) {
-          targetSchema = matched
-          break
-        }
-      }
-      
-      // Fallback to searching the document by anchor or pointer
-      if targetSchema == nil {
-        if dRef.hasPrefix("#") {
-          let cleanAnchor = dRef.replacingOccurrences(of: "#", with: "")
-          targetSchema = docRoot.findSchema(byAnchor: cleanAnchor)
-          if targetSchema == nil {
-            targetSchema = docRoot.resolvePointer(dRef)
-          }
-        } else if let currentBase = self.resolvedBaseURI,
-                  let refURL = URL(string: dRef, relativeTo: currentBase) {
-          targetSchema = resolveAbsoluteURL(refURL, docRoot: docRoot)
-        }
-      }
-    } else if targetSchema == nil, let ref = resolvedRef {
+    // Helper to resolve static references
+    func resolveStaticRef(_ ref: String, docRoot: JSONSchema) -> JSONSchema? {
       if ref.hasPrefix("#") {
         let currentBase = self.resolvedBaseURI
-        let targetBase = currentBase.flatMap { docRoot.findSchema(byURI: $0) } ?? docRoot
+        var targetBase = currentBase.flatMap { docRoot.findSchema(byURI: $0) }
+        if targetBase == nil, let currentBase {
+          targetBase = JSONSchema.dynamicRegistry[currentBase]
+        }
+        if targetBase == nil, let currentBase {
+          targetBase = JSONSchema.wellKnownSchemas[currentBase]
+        }
+        let finalBase = targetBase ?? docRoot
 
         if ref == "#" {
-          targetSchema = targetBase
+          return finalBase
         } else if ref.hasPrefix("#/") {
-          targetSchema = targetBase.resolvePointer(ref)
+          return finalBase.resolvePointer(ref)
         } else {
           let cleanAnchor = ref.replacingOccurrences(of: "#", with: "")
-          targetSchema = targetBase.findSchema(byAnchor: cleanAnchor)
+          return finalBase.findSchema(byAnchor: cleanAnchor)
         }
-      } else if let currentBase = self.resolvedBaseURI,
-                let refURL = URL(string: ref, relativeTo: currentBase) {
-        targetSchema = resolveAbsoluteURL(refURL, docRoot: docRoot)
+      } else {
+        // 1. Try resolving relative to self.resolvedBaseURI if it exists
+        if let base = self.resolvedBaseURI,
+          let refURL = URL(string: ref, relativeTo: base),
+          let resolved = resolveAbsoluteURL(refURL, docRoot: docRoot)
+        {
+          return resolved
+        }
+        // 2. Fallback: Try resolving relative to docRoot.retrievalURI
+        if let rootRetrieval = docRoot.retrievalURI,
+          let fallbackURL = URL(string: ref, relativeTo: rootRetrieval),
+          let resolved = resolveAbsoluteURL(fallbackURL, docRoot: docRoot)
+        {
+          return resolved
+        }
+        // 3. Fallback: Try treating ref as an absolute URL directly
+        if let absoluteURL = URL(string: ref),
+          let resolved = resolveAbsoluteURL(absoluteURL, docRoot: docRoot)
+        {
+          return resolved
+        }
       }
+      return nil
+    }
+
+    if let dRef = resolvedDynamicRef {
+      actualRef = dRef
+
+      // Extract the anchor/fragment name
+      let anchorName: String
+      if let hashIndex = dRef.firstIndex(of: "#") {
+        anchorName = String(dRef[dRef.index(after: hashIndex)...])
+      } else {
+        anchorName = dRef
+      }
+
+      // 1. Resolve initial target statically
+      let initialTarget = resolveStaticRef(dRef, docRoot: docRoot)
+
+      // 2. Check if the initial target has a matching dynamicAnchor
+      if let target = initialTarget, let targetAnchor = target.dynamicAnchor,
+        targetAnchor == anchorName
+      {
+        // 3. Walk dynamic scope
+        var resolvedDynamic: JSONSchema? = nil
+        for schema in dynamicScope {
+          let resourceSchema: JSONSchema?
+          if let base = schema.resolvedBaseURI {
+            resourceSchema =
+              docRoot.findSchema(byURI: base)
+              ?? JSONSchema.dynamicRegistry[base]
+              ?? JSONSchema.wellKnownSchemas[base]
+          } else {
+            var root = schema
+            while let p = root.parent {
+              root = p
+            }
+            resourceSchema = root
+          }
+
+          if let resourceSchema,
+            let matched = resourceSchema.findSchema(byAnchor: anchorName),
+            matched.dynamicAnchor == anchorName
+          {
+            resolvedDynamic = matched
+            break
+          }
+        }
+        targetSchema = resolvedDynamic ?? target
+      } else {
+        // Fallback to static resolution
+        targetSchema = initialTarget
+      }
+    } else if targetSchema == nil, let ref = resolvedRef {
+      targetSchema = resolveStaticRef(ref, docRoot: docRoot)
     }
 
     if targetSchema != nil || actualRef != nil {
@@ -963,15 +1076,25 @@ extension JSONSchema {
           )
         }
       } else {
-        applicatorOutputs.append(ValidationOutput(
-          instance: instance,
-          schema: self,
-          matchedSchemaIDs: [cycleKey]
-        ))
+        applicatorOutputs.append(
+          ValidationOutput(
+            instance: instance,
+            schema: self,
+            matchedSchemaIDs: [cycleKey]
+          ))
       }
     }
 
-    try validateType(instance: instance)
+    let isValidationActive = isVocabularyActive(
+      "https://json-schema.org/draft/2020-12/vocab/validation", docRoot: rootSchema)
+    let isApplicatorActive = isVocabularyActive(
+      "https://json-schema.org/draft/2020-12/vocab/applicator", docRoot: rootSchema)
+    let isUnevaluatedActive = isVocabularyActive(
+      "https://json-schema.org/draft/2020-12/vocab/unevaluated", docRoot: rootSchema)
+
+    if isValidationActive {
+      try validateType(instance: instance)
+    }
 
     var children: [String: ValidationOutput] = [:]
     var localEvalProps = Set<String>()
@@ -979,9 +1102,22 @@ extension JSONSchema {
 
     switch instance {
     case .string(let str):
-      try validateStringConstraints(str: str)
+      if isValidationActive {
+        try validateStringConstraints(str: str)
+      }
+      var assertFormat = false
+      if let vocab = rootSchema.vocabulary,
+        vocab["https://json-schema.org/draft/2020-12/vocab/format-assertion"] == true
+      {
+        assertFormat = true
+      }
+      if assertFormat, let format {
+        try validateFormat(str, format: format)
+      }
     case .number(let num):
-      try validateNumberConstraints(num: num)
+      if isValidationActive {
+        try validateNumberConstraints(num: num)
+      }
     case .array(let itemsList):
       try validateArrayConstraints(
         itemsList: itemsList,
@@ -1003,46 +1139,52 @@ extension JSONSchema {
       break
     }
 
-    if let const {
-      guard instance == const else {
-        throw ValidationError(path: "/", message: "Expected const value: \(const)")
+    if isValidationActive {
+      if let const {
+        guard instance == const else {
+          throw ValidationError(path: "/", message: "Expected const value: \(const)")
+        }
       }
-    }
-    if let `enum` {
-      guard `enum`.contains(instance) else {
-        throw ValidationError(path: "/", message: "Value is not in enum")
+      if let `enum` {
+        guard `enum`.contains(instance) else {
+          throw ValidationError(path: "/", message: "Value is not in enum")
+        }
       }
     }
 
-    try validateAllOf(
-      instance: instance,
-      visitingSchemas: visitingSchemas,
-      outputs: &applicatorOutputs,
-      rootSchema: rootSchema,
-      dynamicScope: dynamicScope
-    )
-    try validateAnyOf(
-      instance: instance,
-      visitingSchemas: visitingSchemas,
-      outputs: &applicatorOutputs,
-      rootSchema: rootSchema,
-      dynamicScope: dynamicScope
-    )
-    try validateOneOf(
-      instance: instance,
-      visitingSchemas: visitingSchemas,
-      outputs: &applicatorOutputs,
-      rootSchema: rootSchema,
-      dynamicScope: dynamicScope
-    )
-    try validateNot(instance: instance, visitingSchemas: visitingSchemas, rootSchema: rootSchema, dynamicScope: dynamicScope)
-    try validateIfThenElse(
-      instance: instance,
-      visitingSchemas: visitingSchemas,
-      outputs: &applicatorOutputs,
-      rootSchema: rootSchema,
-      dynamicScope: dynamicScope
-    )
+    if isApplicatorActive {
+      try validateAllOf(
+        instance: instance,
+        visitingSchemas: visitingSchemas,
+        outputs: &applicatorOutputs,
+        rootSchema: rootSchema,
+        dynamicScope: dynamicScope
+      )
+      try validateAnyOf(
+        instance: instance,
+        visitingSchemas: visitingSchemas,
+        outputs: &applicatorOutputs,
+        rootSchema: rootSchema,
+        dynamicScope: dynamicScope
+      )
+      try validateOneOf(
+        instance: instance,
+        visitingSchemas: visitingSchemas,
+        outputs: &applicatorOutputs,
+        rootSchema: rootSchema,
+        dynamicScope: dynamicScope
+      )
+      try validateNot(
+        instance: instance, visitingSchemas: visitingSchemas, rootSchema: rootSchema,
+        dynamicScope: dynamicScope)
+      try validateIfThenElse(
+        instance: instance,
+        visitingSchemas: visitingSchemas,
+        outputs: &applicatorOutputs,
+        rootSchema: rootSchema,
+        dynamicScope: dynamicScope
+      )
+    }
 
     let baseOutput = ValidationOutput(
       instance: instance,
@@ -1055,23 +1197,30 @@ extension JSONSchema {
 
     var finalOutput = baseOutput
     if !applicatorOutputs.isEmpty {
-      finalOutput = mergeValidationOutputs([baseOutput] + applicatorOutputs, instance: instance, schema: self)
+      finalOutput = mergeValidationOutputs(
+        [baseOutput] + applicatorOutputs, instance: instance, schema: self)
     }
 
     // Validate unevaluatedItems
-    if let unevaluatedItemsSchema = unevaluatedItems?.value, case .array(let itemsList) = instance {
+    if isUnevaluatedActive, let unevaluatedItemsSchema = unevaluatedItems?.value,
+      case .array(let itemsList) = instance
+    {
       let allIndices = Set(0..<itemsList.count)
       let unevaluatedIndices = allIndices.subtracting(finalOutput.evaluatedItems)
-      
+
       var unevaluatedChildren: [String: ValidationOutput] = [:]
       var newEvalItems = finalOutput.evaluatedItems
-      
+
       for index in unevaluatedIndices.sorted() {
         let item = itemsList[index]
-        if unevaluatedItemsSchema.isBooleanSchema == true && unevaluatedItemsSchema.booleanSchemaValue == false {
-          throw ValidationError(path: "/\(index)", message: "unevaluated item at index \(index) is not allowed by schema false")
+        if unevaluatedItemsSchema.isBooleanSchema == true
+          && unevaluatedItemsSchema.booleanSchemaValue == false
+        {
+          throw ValidationError(
+            path: "/\(index)",
+            message: "unevaluated item at index \(index) is not allowed by schema false")
         }
-        
+
         do {
           var childScope = dynamicScope
           childScope.append(self)
@@ -1089,7 +1238,7 @@ extension JSONSchema {
           throw ValidationError(path: prependedPath, message: error.message)
         }
       }
-      
+
       if !unevaluatedChildren.isEmpty {
         var mergedChildren = finalOutput.children
         for (k, v) in unevaluatedChildren {
@@ -1107,19 +1256,25 @@ extension JSONSchema {
     }
 
     // Validate unevaluatedProperties
-    if let unevaluatedPropsSchema = unevaluatedProperties?.value, case .object(let dict) = instance {
+    if isUnevaluatedActive, let unevaluatedPropsSchema = unevaluatedProperties?.value,
+      case .object(let dict) = instance
+    {
       let allKeys = Set(dict.keys)
       let unevaluatedKeys = allKeys.subtracting(finalOutput.evaluatedProperties)
-      
+
       var unevaluatedChildren: [String: ValidationOutput] = [:]
       var newEvalProps = finalOutput.evaluatedProperties
-      
+
       for key in unevaluatedKeys.sorted() {
         let val = dict[key]!
-        if unevaluatedPropsSchema.isBooleanSchema == true && unevaluatedPropsSchema.booleanSchemaValue == false {
-          throw ValidationError(path: "/\(key)", message: "unevaluated property '\(key)' is not allowed by schema false")
+        if unevaluatedPropsSchema.isBooleanSchema == true
+          && unevaluatedPropsSchema.booleanSchemaValue == false
+        {
+          throw ValidationError(
+            path: "/\(key)", message: "unevaluated property '\(key)' is not allowed by schema false"
+          )
         }
-        
+
         do {
           var childScope = dynamicScope
           childScope.append(self)
@@ -1136,7 +1291,7 @@ extension JSONSchema {
           throw ValidationError(path: prependedPath, message: error.message)
         }
       }
-      
+
       if !unevaluatedChildren.isEmpty {
         var mergedChildren = finalOutput.children
         for (k, v) in unevaluatedChildren {
@@ -1211,7 +1366,8 @@ extension JSONSchema {
         if deepestErrors.count == 1 {
           throw deepestErrors[0]
         } else {
-          let combinedMessage = "Instance did not match any subschema in anyOf: ["
+          let combinedMessage =
+            "Instance did not match any subschema in anyOf: ["
             + deepestErrors.map { $0.message }.joined(separator: ", ")
             + "]"
           throw ValidationError(path: deepestErrors[0].path, message: combinedMessage)
@@ -1277,7 +1433,8 @@ extension JSONSchema {
         } else {
           let firstPath = deepestErrors[0].path
           let allPathsEqual = deepestErrors.allSatisfy { $0.path == firstPath }
-          let combinedMessage = "Instance did not match any subschema in oneOf: ["
+          let combinedMessage =
+            "Instance did not match any subschema in oneOf: ["
             + deepestErrors.map { $0.message }.joined(separator: ", ")
             + "]"
           if allPathsEqual {
@@ -1348,7 +1505,8 @@ extension JSONSchema {
           dynamicScope: childScope
         )
         if let ifOutput {
-          let merged = mergeValidationOutputs([ifOutput, thenOutput], instance: instance, schema: self)
+          let merged = mergeValidationOutputs(
+            [ifOutput, thenOutput], instance: instance, schema: self)
           outputs.append(merged)
         } else {
           outputs.append(thenOutput)
@@ -1371,7 +1529,6 @@ extension JSONSchema {
     }
   }
 
-
   private func validateType(instance: JSONValue) throws {
     guard let types, !omitType else { return }
     let matchedType = types.contains { type in
@@ -1392,7 +1549,8 @@ extension JSONSchema {
     if !matchedType {
       throw ValidationError(
         path: "/",
-        message: "Expected type from \(types.map { $0.rawValue }.sorted()), got \(instance.typeName)"
+        message:
+          "Expected type from \(types.map { $0.rawValue }.sorted()), got \(instance.typeName)"
       )
     }
   }
@@ -1416,6 +1574,123 @@ extension JSONSchema {
     }
   }
 
+  private func validateFormat(_ value: String, format: String) throws {
+    switch format {
+    case "uuid":
+      let uuidRegex =
+        "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+      try verifyRegex(value, pattern: uuidRegex, message: "invalid UUID format")
+
+    case "ipv4":
+      let ipv4Regex =
+        "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+      try verifyRegex(value, pattern: ipv4Regex, message: "invalid IPv4 format")
+
+    case "ipv6":
+      let ipv6Regex =
+        "^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$"
+      try verifyRegex(value, pattern: ipv6Regex, message: "invalid IPv6 format")
+
+    case "email":
+      let emailRegex =
+        "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+      try verifyRegex(value, pattern: emailRegex, message: "invalid Email format")
+
+    case "idn-email":
+      try validateIdnEmail(value)
+
+    case "hostname":
+      let hostRegex =
+        "^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
+      try verifyRegex(value, pattern: hostRegex, message: "invalid Hostname format")
+
+    case "idn-hostname":
+      let asciiHost = Punycode.toASCII(value)
+      let hostRegex =
+        "^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
+      try verifyRegex(asciiHost, pattern: hostRegex, message: "invalid Hostname format")
+
+    case "json-pointer":
+      let pointerRegex = "^(?:\\/(?:[^~/]|~0|~1)*)*$"
+      try verifyRegex(value, pattern: pointerRegex, message: "invalid JSON Pointer format")
+
+    case "relative-json-pointer":
+      let relPointerRegex = "^(?:0|[1-9][0-9]*)(?:#|(?:\\/(?:[^~/]|~0|~1)*)*)$"
+      try verifyRegex(
+        value, pattern: relPointerRegex, message: "invalid Relative JSON Pointer format")
+
+    case "uri-template":
+      let templateRegex =
+        "^(?:[^\\{\\}]|\\{[+#./;?&]?[-a-zA-Z0-9_]+(?:\\*|:\\d+)?(?:,[-a-zA-Z0-9_]+(?:\\*|:\\d+)?)*\\})*$"
+      try verifyRegex(value, pattern: templateRegex, message: "invalid URI Template format")
+
+    case "uri", "iri":
+      guard let url = URL(string: value), url.scheme != nil else {
+        throw ValidationError(path: "", message: "invalid URI format")
+      }
+
+    case "uri-reference", "iri-reference":
+      guard URL(string: value) != nil else {
+        throw ValidationError(path: "", message: "invalid URI Reference format")
+      }
+
+    case "date-time":
+      let formatter = ISO8601DateFormatter()
+      formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+      if formatter.date(from: value) == nil {
+        formatter.formatOptions = [.withInternetDateTime]
+        if formatter.date(from: value) == nil {
+          throw ValidationError(path: "", message: "invalid Date-Time format")
+        }
+      }
+
+    case "date":
+      let dateRegex = "^\\d{4}-\\d{2}-\\d{2}$"
+      try verifyRegex(value, pattern: dateRegex, message: "invalid Date format")
+
+    case "time":
+      let timeRegex = "^\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?$"
+      try verifyRegex(value, pattern: timeRegex, message: "invalid Time format")
+
+    default:
+      break  // Ignore unsupported formats gracefully
+    }
+  }
+
+  private func validateIdnEmail(_ value: String) throws {
+    let parts = value.split(separator: "@", omittingEmptySubsequences: false)
+    guard parts.count == 2 else {
+      throw ValidationError(path: "", message: "invalid idn-email format")
+    }
+
+    let localPart = String(parts[0])
+    let domainPart = String(parts[1])
+
+    let asciiDomain = Punycode.toASCII(domainPart)
+
+    let asciiLocalScalars = localPart.unicodeScalars.map { scalar -> UnicodeScalar in
+      if scalar.value < 128 {
+        return scalar
+      } else {
+        return UnicodeScalar(97)!  // 'a'
+      }
+    }
+    let asciiLocal = String(String.UnicodeScalarView(asciiLocalScalars))
+
+    let asciiEmail = "\(asciiLocal)@\(asciiDomain)"
+    let emailRegex =
+      "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+    try verifyRegex(asciiEmail, pattern: emailRegex, message: "invalid idn-email format")
+  }
+
+  private func verifyRegex(_ value: String, pattern: String, message: String) throws {
+    let regex = try NSRegularExpression(pattern: pattern)
+    let range = NSRange(location: 0, length: value.utf16.count)
+    guard regex.firstMatch(in: value, options: [], range: range) != nil else {
+      throw ValidationError(path: "", message: message)
+    }
+  }
+
   private func validateNumberConstraints(num: Double) throws {
     if let minimum {
       guard num >= minimum else {
@@ -1429,12 +1704,14 @@ extension JSONSchema {
     }
     if let exclusiveMinimum {
       guard num > exclusiveMinimum else {
-        throw ValidationError(path: "/", message: "Number must be strictly greater than \(exclusiveMinimum)")
+        throw ValidationError(
+          path: "/", message: "Number must be strictly greater than \(exclusiveMinimum)")
       }
     }
     if let exclusiveMaximum {
       guard num < exclusiveMaximum else {
-        throw ValidationError(path: "/", message: "Number must be strictly less than \(exclusiveMaximum)")
+        throw ValidationError(
+          path: "/", message: "Number must be strictly less than \(exclusiveMaximum)")
       }
     }
     if let multipleOf {
@@ -1452,50 +1729,78 @@ extension JSONSchema {
     rootSchema: JSONSchema,
     dynamicScope: [JSONSchema]
   ) throws {
-    if let minItems {
-      guard itemsList.count >= minItems else {
-        throw ValidationError(path: "/", message: "Array has too few items")
+    let isValidationActive = rootSchema.isVocabularyActive(
+      "https://json-schema.org/draft/2020-12/vocab/validation", docRoot: rootSchema)
+    let isApplicatorActive = rootSchema.isVocabularyActive(
+      "https://json-schema.org/draft/2020-12/vocab/applicator", docRoot: rootSchema)
+
+    if isValidationActive {
+      if let minItems {
+        guard itemsList.count >= minItems else {
+          throw ValidationError(path: "/", message: "Array has too few items")
+        }
       }
-    }
-    if let maxItems {
-      guard itemsList.count <= maxItems else {
-        throw ValidationError(path: "/", message: "Array has too many items")
+      if let maxItems {
+        guard itemsList.count <= maxItems else {
+          throw ValidationError(path: "/", message: "Array has too many items")
+        }
       }
-    }
-    if let uniqueItems, uniqueItems {
-      for i in 0..<itemsList.count {
-        for j in (i + 1)..<itemsList.count {
-          if itemsList[i] == itemsList[j] {
-            throw ValidationError(
-              path: "/",
-              message: "Array contains duplicate items at indices \(i) and \(j)"
-            )
+      if let uniqueItems, uniqueItems {
+        for i in 0..<itemsList.count {
+          for j in (i + 1)..<itemsList.count {
+            if itemsList[i] == itemsList[j] {
+              throw ValidationError(
+                path: "/",
+                message: "Array contains duplicate items at indices \(i) and \(j)"
+              )
+            }
           }
         }
       }
     }
 
-    let prefixSchemas = prefixItems ?? itemArray
-    if let prefixSchemas {
-      for (index, item) in itemsList.enumerated() {
-        if index < prefixSchemas.count {
-          do {
-            var childScope = dynamicScope
-            childScope.append(self)
-            let childOutput = try prefixSchemas[index].validate(
-              instance: item,
-              visitingSchemas: [],
-              rootSchema: rootSchema,
-              dynamicScope: childScope
-            )
-            children[String(index)] = childOutput
-            localEvalItems.insert(index)
-          } catch let error as ValidationError {
-            let segment = String(index)
-            let prependedPath = error.path == "/" ? "/\(segment)" : "/\(segment)\(error.path)"
-            throw ValidationError(path: prependedPath, message: error.message)
+    if isApplicatorActive {
+      let prefixSchemas = prefixItems ?? itemArray
+      if let prefixSchemas {
+        for (index, item) in itemsList.enumerated() {
+          if index < prefixSchemas.count {
+            do {
+              var childScope = dynamicScope
+              childScope.append(self)
+              let childOutput = try prefixSchemas[index].validate(
+                instance: item,
+                visitingSchemas: [],
+                rootSchema: rootSchema,
+                dynamicScope: childScope
+              )
+              children[String(index)] = childOutput
+              localEvalItems.insert(index)
+            } catch let error as ValidationError {
+              let segment = String(index)
+              let prependedPath = error.path == "/" ? "/\(segment)" : "/\(segment)\(error.path)"
+              throw ValidationError(path: prependedPath, message: error.message)
+            }
+          } else if let itemsSchema = items?.value {
+            do {
+              var childScope = dynamicScope
+              childScope.append(self)
+              let childOutput = try itemsSchema.validate(
+                instance: item,
+                visitingSchemas: [],
+                rootSchema: rootSchema,
+                dynamicScope: childScope
+              )
+              children[String(index)] = childOutput
+              localEvalItems.insert(index)
+            } catch let error as ValidationError {
+              let segment = String(index)
+              let prependedPath = error.path == "/" ? "/\(segment)" : "/\(segment)\(error.path)"
+              throw ValidationError(path: prependedPath, message: error.message)
+            }
           }
-        } else if let itemsSchema = items?.value {
+        }
+      } else if let itemsSchema = items?.value {
+        for (index, item) in itemsList.enumerated() {
           do {
             var childScope = dynamicScope
             childScope.append(self)
@@ -1514,64 +1819,58 @@ extension JSONSchema {
           }
         }
       }
-    } else if let itemsSchema = items?.value {
-      for (index, item) in itemsList.enumerated() {
-        do {
+
+      if isApplicatorActive, let contains {
+        var matchCount = 0
+        var containsChildren: [String: ValidationOutput] = [:]
+        for (index, item) in itemsList.enumerated() {
           var childScope = dynamicScope
           childScope.append(self)
-          let childOutput = try itemsSchema.validate(
+          if let output = try? contains.value.validate(
             instance: item,
             visitingSchemas: [],
             rootSchema: rootSchema,
             dynamicScope: childScope
-          )
-          children[String(index)] = childOutput
-          localEvalItems.insert(index)
-        } catch let error as ValidationError {
-          let segment = String(index)
-          let prependedPath = error.path == "/" ? "/\(segment)" : "/\(segment)\(error.path)"
-          throw ValidationError(path: prependedPath, message: error.message)
+          ) {
+            matchCount += 1
+            containsChildren[String(index)] = output
+            localEvalItems.insert(index)
+          }
         }
-      }
-    }
- 
-    if let contains {
-      var matchCount = 0
-      var containsChildren: [String: ValidationOutput] = [:]
-      for (index, item) in itemsList.enumerated() {
-        var childScope = dynamicScope
-        childScope.append(self)
-        if let output = try? contains.value.validate(
-          instance: item,
-          visitingSchemas: [],
-          rootSchema: rootSchema,
-          dynamicScope: childScope
-        ) {
-          matchCount += 1
-          containsChildren[String(index)] = output
-          localEvalItems.insert(index)
+
+        if isValidationActive {
+          let minC = minContains ?? 1
+          guard matchCount >= minC else {
+            throw ValidationError(
+              path: "/",
+              message:
+                "Array contains only \(matchCount) element(s) matching the 'contains' schema, expected at least \(minC)"
+            )
+          }
+
+          if let maxC = maxContains {
+            guard matchCount <= maxC else {
+              throw ValidationError(
+                path: "/",
+                message:
+                  "Array contains \(matchCount) element(s) matching the 'contains' schema, expected at most \(maxC)"
+              )
+            }
+          }
+        } else {
+          // If Validation is disabled but Applicator is active, contains still requires at least 1 match by default
+          guard matchCount >= 1 else {
+            throw ValidationError(
+              path: "/",
+              message:
+                "Array contains 0 elements matching the 'contains' subschema, expected at least 1"
+            )
+          }
         }
-      }
-      
-      let minC = minContains ?? 1
-      guard matchCount >= minC else {
-        throw ValidationError(
-          path: "/",
-          message: "Array contains only \(matchCount) element(s) matching the 'contains' schema, expected at least \(minC)"
-        )
-      }
-      
-      if let maxC = maxContains {
-        guard matchCount <= maxC else {
-          throw ValidationError(
-            path: "/",
-            message: "Array contains \(matchCount) element(s) matching the 'contains' schema, expected at most \(maxC)"
-          )
+
+        for (key, val) in containsChildren {
+          children[key] = val
         }
-      }
-      
-      for (key, val) in containsChildren {
-        children[key] = val
       }
     }
   }
@@ -1584,84 +1883,69 @@ extension JSONSchema {
     rootSchema: JSONSchema,
     dynamicScope: [JSONSchema]
   ) throws {
-    if let minProperties {
-      guard dict.count >= minProperties else {
-        throw ValidationError(path: "/", message: "Object has too few properties")
-      }
-    }
-    if let maxProperties {
-      guard dict.count <= maxProperties else {
-        throw ValidationError(path: "/", message: "Object has too many properties")
-      }
-    }
+    let isValidationActive = rootSchema.isVocabularyActive(
+      "https://json-schema.org/draft/2020-12/vocab/validation", docRoot: rootSchema)
+    let isApplicatorActive = rootSchema.isVocabularyActive(
+      "https://json-schema.org/draft/2020-12/vocab/applicator", docRoot: rootSchema)
 
-    if let required {
-      for reqKey in required {
-        guard dict[reqKey] != nil else {
-          throw ValidationError(path: "/", message: "missing required property: \(reqKey)")
+    if isValidationActive {
+      if let minProperties {
+        guard dict.count >= minProperties else {
+          throw ValidationError(path: "/", message: "Object has too few properties")
+        }
+      }
+      if let maxProperties {
+        guard dict.count <= maxProperties else {
+          throw ValidationError(path: "/", message: "Object has too many properties")
+        }
+      }
+
+      if let required {
+        for reqKey in required {
+          guard dict[reqKey] != nil else {
+            throw ValidationError(path: "/", message: "missing required property: \(reqKey)")
+          }
         }
       }
     }
 
-    for (key, val) in dict {
-      var matchedAnyPattern = false
-      var patternOutputs: [ValidationOutput] = []
+    if isApplicatorActive {
+      for (key, val) in dict {
+        var matchedAnyPattern = false
+        var patternOutputs: [ValidationOutput] = []
 
-      if let patternProperties {
-        for (pattern, patternSchema) in patternProperties {
-          if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-            let range = NSRange(key.startIndex..<key.endIndex, in: key)
-            if regex.firstMatch(in: key, options: [], range: range) != nil {
-              matchedAnyPattern = true
-              do {
-                var childScope = dynamicScope
-                childScope.append(self)
-                let out = try patternSchema.validate(
-                  instance: val,
-                  visitingSchemas: [],
-                  rootSchema: rootSchema,
-                  dynamicScope: childScope
-                )
-                patternOutputs.append(out)
-                localEvalProps.insert(key)
-              } catch let error as ValidationError {
-                let prependedPath = error.path == "/" ? "/\(key)" : "/\(key)\(error.path)"
-                throw ValidationError(path: prependedPath, message: error.message)
+        if let patternProperties {
+          for (pattern, patternSchema) in patternProperties {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+              let range = NSRange(key.startIndex..<key.endIndex, in: key)
+              if regex.firstMatch(in: key, options: [], range: range) != nil {
+                matchedAnyPattern = true
+                do {
+                  var childScope = dynamicScope
+                  childScope.append(self)
+                  let out = try patternSchema.validate(
+                    instance: val,
+                    visitingSchemas: [],
+                    rootSchema: rootSchema,
+                    dynamicScope: childScope
+                  )
+                  patternOutputs.append(out)
+                  localEvalProps.insert(key)
+                } catch let error as ValidationError {
+                  let prependedPath = error.path == "/" ? "/\(key)" : "/\(key)\(error.path)"
+                  throw ValidationError(path: prependedPath, message: error.message)
+                }
               }
             }
           }
         }
-      }
- 
-      var standardOutput: ValidationOutput? = nil
-      if let propertySchema = properties?[key] {
-        do {
-          var childScope = dynamicScope
-          childScope.append(self)
-          standardOutput = try propertySchema.validate(
-            instance: val,
-            visitingSchemas: [],
-            rootSchema: rootSchema,
-            dynamicScope: childScope
-          )
-          localEvalProps.insert(key)
-        } catch let error as ValidationError {
-          let prependedPath = error.path == "/" ? "/\(key)" : "/\(key)\(error.path)"
-          throw ValidationError(path: prependedPath, message: error.message)
-        }
-      }
- 
-      var additionalOutput: ValidationOutput? = nil
-      let isDeclaredProperty = properties?[key] != nil
-      if !isDeclaredProperty && !matchedAnyPattern {
-        if let additionalPropertiesSchema = additionalProperties?.value {
-          if additionalPropertiesSchema.isBooleanSchema == true && additionalPropertiesSchema.booleanSchemaValue == false {
-            throw ValidationError(path: "/\(key)", message: "additional property '\(key)' is not allowed")
-          }
+
+        var standardOutput: ValidationOutput? = nil
+        if let propertySchema = properties?[key] {
           do {
             var childScope = dynamicScope
             childScope.append(self)
-            additionalOutput = try additionalPropertiesSchema.validate(
+            standardOutput = try propertySchema.validate(
               instance: val,
               visitingSchemas: [],
               rootSchema: rootSchema,
@@ -1673,42 +1957,70 @@ extension JSONSchema {
             throw ValidationError(path: prependedPath, message: error.message)
           }
         }
-      }
 
-      var keyOutputs: [ValidationOutput] = []
-      if let standardOutput {
-        keyOutputs.append(standardOutput)
-      }
-      keyOutputs.append(contentsOf: patternOutputs)
-      if let additionalOutput {
-        keyOutputs.append(additionalOutput)
-      }
+        var additionalOutput: ValidationOutput? = nil
+        let isDeclaredProperty = properties?[key] != nil
+        if !isDeclaredProperty && !matchedAnyPattern {
+          if let additionalPropertiesSchema = additionalProperties?.value {
+            if additionalPropertiesSchema.isBooleanSchema == true
+              && additionalPropertiesSchema.booleanSchemaValue == false
+            {
+              throw ValidationError(
+                path: "/\(key)", message: "additional property '\(key)' is not allowed")
+            }
+            do {
+              var childScope = dynamicScope
+              childScope.append(self)
+              additionalOutput = try additionalPropertiesSchema.validate(
+                instance: val,
+                visitingSchemas: [],
+                rootSchema: rootSchema,
+                dynamicScope: childScope
+              )
+              localEvalProps.insert(key)
+            } catch let error as ValidationError {
+              let prependedPath = error.path == "/" ? "/\(key)" : "/\(key)\(error.path)"
+              throw ValidationError(path: prependedPath, message: error.message)
+            }
+          }
+        }
 
-      if !keyOutputs.isEmpty {
-        children[key] = mergeValidationOutputs(keyOutputs, instance: val, schema: self)
-      }
-    }
+        var keyOutputs: [ValidationOutput] = []
+        if let standardOutput {
+          keyOutputs.append(standardOutput)
+        }
+        keyOutputs.append(contentsOf: patternOutputs)
+        if let additionalOutput {
+          keyOutputs.append(additionalOutput)
+        }
 
-    if let propertyNamesSchema = propertyNames?.value {
-      for key in dict.keys {
-        let keyInstance = JSONValue.string(key)
-        do {
-          var childScope = dynamicScope
-          childScope.append(self)
-          _ = try propertyNamesSchema.validate(
-            instance: keyInstance,
-            visitingSchemas: [],
-            rootSchema: rootSchema,
-            dynamicScope: childScope
-          )
-        } catch let error as ValidationError {
-          let prependedPath = error.path == "/" ? "/\(key)" : "/\(key)\(error.path)"
-          throw ValidationError(
-            path: prependedPath,
-            message: "Property name '\(key)' is invalid: \(error.message)"
-          )
+        if !keyOutputs.isEmpty {
+          children[key] = mergeValidationOutputs(keyOutputs, instance: val, schema: self)
         }
       }
+
+      if let propertyNamesSchema = propertyNames?.value {
+        for key in dict.keys {
+          let keyInstance = JSONValue.string(key)
+          do {
+            var childScope = dynamicScope
+            childScope.append(self)
+            _ = try propertyNamesSchema.validate(
+              instance: keyInstance,
+              visitingSchemas: [],
+              rootSchema: rootSchema,
+              dynamicScope: childScope
+            )
+          } catch let error as ValidationError {
+            let prependedPath = error.path == "/" ? "/\(key)" : "/\(key)\(error.path)"
+            throw ValidationError(
+              path: prependedPath,
+              message: "Property name '\(key)' is invalid: \(error.message)"
+            )
+          }
+        }
+      }
+
     }
 
     if let dependencies {
@@ -1717,53 +2029,43 @@ extension JSONSchema {
         if dict.keys.contains(triggerKey) {
           switch dependency {
           case .property(let requiredKeys):
-            for reqKey in requiredKeys {
-              if !dict.keys.contains(reqKey) {
-                throw ValidationError(
-                  path: "/",
-                  message: "Dependency requirement not met: trigger key '\(triggerKey)' requires '\(reqKey)'"
-                )
-               }
-             }
+            if isValidationActive {
+              for reqKey in requiredKeys {
+                guard dict.keys.contains(reqKey) else {
+                  throw ValidationError(
+                    path: "/",
+                    message:
+                      "Dependency requirement not met: trigger key '\(triggerKey)' requires '\(reqKey)'"
+                  )
+                }
+              }
+            }
           case .schema(let depSchema):
-            var childScope = dynamicScope
-            childScope.append(self)
-            let output = try depSchema.validate(
-              instance: JSONValue.object(dict),
-              visitingSchemas: visitingSchemas,
-              rootSchema: rootSchema,
-              dynamicScope: childScope
-            )
-            dependencyOutputs.append(output)
-            localEvalProps.formUnion(output.evaluatedProperties)
+            if isApplicatorActive {
+              var childScope = dynamicScope
+              childScope.append(self)
+              let output = try depSchema.validate(
+                instance: JSONValue.object(dict),
+                visitingSchemas: visitingSchemas,
+                rootSchema: rootSchema,
+                dynamicScope: childScope
+              )
+              dependencyOutputs.append(output)
+              localEvalProps.formUnion(output.evaluatedProperties)
+            }
           }
         }
       }
-      if !dependencyOutputs.isEmpty {
-        let merged = mergeValidationOutputs(dependencyOutputs, instance: JSONValue.object(dict), schema: self)
+      if isApplicatorActive && !dependencyOutputs.isEmpty {
+        let merged = mergeValidationOutputs(
+          dependencyOutputs, instance: JSONValue.object(dict), schema: self)
         for (k, v) in merged.children {
           children[k] = v
         }
       }
     }
 
-    // Draft 2020-12
-    if let dependentRequired {
-      for (triggerKey, requiredKeys) in dependentRequired {
-        if dict.keys.contains(triggerKey) {
-          for reqKey in requiredKeys {
-            if !dict.keys.contains(reqKey) {
-              throw ValidationError(
-                path: "/",
-                message: "Dependent requirement not met: trigger key '\(triggerKey)' requires '\(reqKey)'"
-              )
-            }
-          }
-        }
-      }
-    }
-
-    if let dependentSchemas {
+    if isApplicatorActive, let dependentSchemas {
       var depOutputs: [ValidationOutput] = []
       for (triggerKey, depSchema) in dependentSchemas {
         if dict.keys.contains(triggerKey) {
@@ -1780,9 +2082,29 @@ extension JSONSchema {
         }
       }
       if !depOutputs.isEmpty {
-        let merged = mergeValidationOutputs(depOutputs, instance: JSONValue.object(dict), schema: self)
+        let merged = mergeValidationOutputs(
+          depOutputs, instance: JSONValue.object(dict), schema: self)
         for (k, v) in merged.children {
           children[k] = v
+        }
+      }
+    }
+
+    if isValidationActive {
+      // Draft 2020-12
+      if let dependentRequired {
+        for (triggerKey, requiredKeys) in dependentRequired {
+          if dict.keys.contains(triggerKey) {
+            for reqKey in requiredKeys {
+              if !dict.keys.contains(reqKey) {
+                throw ValidationError(
+                  path: "/",
+                  message:
+                    "Dependent requirement not met: trigger key '\(triggerKey)' requires '\(reqKey)'"
+                )
+              }
+            }
+          }
         }
       }
     }
@@ -1797,9 +2119,9 @@ extension JSONSchema {
   public static func number() -> JSONSchema { JSONSchema(types: [.number]) }
   public static func boolean() -> JSONSchema { JSONSchema(types: [.boolean]) }
   public static func null() -> JSONSchema { JSONSchema(types: [.null]) }
-  
+
   public static func types(_ set: Set<JSONSchemaType>) -> JSONSchema { JSONSchema(types: set) }
-  
+
   public static func object(
     omitType: Bool = false,
     additionalProperties: JSONSchema? = nil,
@@ -1918,8 +2240,9 @@ extension JSONSchema {
     )
   }
 
-
-  public static func reference(_ stub: @escaping @autoclosure @Sendable () -> JSONSchema) -> JSONSchema {
+  public static func reference(_ stub: @escaping @autoclosure @Sendable () -> JSONSchema)
+    -> JSONSchema
+  {
     return JSONSchema(
       ref: nil,
       id: nil,
@@ -1932,11 +2255,11 @@ extension JSONSchema {
   public func minLength(_ limit: Int) -> JSONSchema {
     mutatingCopy(minLength: limit)
   }
-  
+
   public func maxLength(_ limit: Int) -> JSONSchema {
     mutatingCopy(maxLength: limit)
   }
-  
+
   public func pattern(_ pattern: String) -> JSONSchema {
     mutatingCopy(pattern: pattern)
   }
@@ -1997,7 +2320,6 @@ extension JSONSchema {
     mutatingCopy(patternProperties: patternProperties)
   }
 
-
   internal func mutatingCopy(
     minimum: Double? = nil,
     maximum: Double? = nil,
@@ -2040,8 +2362,11 @@ extension JSONSchema {
     defs: [String: JSONSchema]? = nil,
     unevaluatedProperties: JSONSchema? = nil,
     unevaluatedItems: JSONSchema? = nil,
+    anchor: String? = nil,
     dynamicAnchor: String? = nil,
-    dynamicRef: String? = nil
+    dynamicRef: String? = nil,
+    format: String? = nil,
+    vocabulary: [String: Bool]? = nil
   ) -> JSONSchema {
     return JSONSchema(
       types: self.types,
@@ -2092,8 +2417,11 @@ extension JSONSchema {
       defs: defs ?? self.defs,
       unevaluatedProperties: unevaluatedProperties.map { Box($0) } ?? self.unevaluatedProperties,
       unevaluatedItems: unevaluatedItems.map { Box($0) } ?? self.unevaluatedItems,
+      anchor: anchor ?? self.anchor,
       dynamicAnchor: dynamicAnchor ?? self.dynamicAnchor,
-      dynamicRef: dynamicRef ?? self.dynamicRef
+      dynamicRef: dynamicRef ?? self.dynamicRef,
+      format: format ?? self.format,
+      vocabulary: vocabulary ?? self.vocabulary
     )
   }
 }
@@ -2104,7 +2432,10 @@ extension JSONSchema {
   public func resolvePointer(_ pointer: String) -> JSONSchema? {
     if pointer == "#" || pointer == "" { return self }
     guard pointer.hasPrefix("#/") else { return nil }
-    let path = pointer.dropFirst(2).split(separator: "/").map { String($0) }
+    let path = pointer.dropFirst(2).split(separator: "/", omittingEmptySubsequences: false).map {
+      let segment = String($0)
+      return segment.removingPercentEncoding ?? segment
+    }
     return resolvePath(path)
   }
 
@@ -2116,10 +2447,10 @@ extension JSONSchema {
 
   private func resolvePath(_ path: [String]) -> JSONSchema? {
     guard !path.isEmpty else { return self }
-    
+
     let token = unescapedToken(path[0])
     let remaining = Array(path.dropFirst())
-    
+
     if token == "$defs" || token == "definitions" {
       guard path.count > 1 else { return nil }
       let key = unescapedToken(path[1])
@@ -2128,7 +2459,7 @@ extension JSONSchema {
       }
       return nil
     }
-    
+
     if token == "properties" {
       guard path.count > 1 else { return nil }
       let key = unescapedToken(path[1])
@@ -2137,7 +2468,7 @@ extension JSONSchema {
       }
       return nil
     }
-    
+
     if token == "patternProperties" {
       guard path.count > 1 else { return nil }
       let key = unescapedToken(path[1])
@@ -2175,7 +2506,7 @@ extension JSONSchema {
       }
       return nil
     }
-    
+
     if token == "contains", let contains = self.contains?.value {
       return contains.resolvePath(remaining)
     }
@@ -2184,7 +2515,8 @@ extension JSONSchema {
       return propertyNames.resolvePath(remaining)
     }
 
-    if token == "additionalProperties", let additionalProperties = self.additionalProperties?.value {
+    if token == "additionalProperties", let additionalProperties = self.additionalProperties?.value
+    {
       return additionalProperties.resolvePath(remaining)
     }
 
@@ -2221,7 +2553,7 @@ extension JSONSchema {
     if token == "else", let `else` = self.else?.value {
       return `else`.resolvePath(remaining)
     }
-    
+
     if let defs = self.defs, let sub = defs[token] {
       return sub.resolvePath(remaining)
     }
@@ -2242,14 +2574,28 @@ extension JSONSchema {
       currentBaseURI = parentBaseURI
     }
     self.resolvedBaseURI = currentBaseURI
-    
+
     // Recursively resolve child properties
-    properties?.values.forEach { $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self) }
-    patternProperties?.values.forEach { $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self) }
-    prefixItems?.forEach { $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self) }
+    properties?.values.forEach {
+      $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
+    }
+    patternProperties?.values.forEach {
+      $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
+    }
+    prefixItems?.forEach {
+      $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
+    }
     items?.value.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
-    itemArray?.forEach { $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self) }
-    defs?.values.forEach { $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self) }
+    itemArray?.forEach {
+      $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
+    }
+    defs?.values.forEach {
+      $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
+    }
+    additionalProperties?.value.resolveLexicalScopes(
+      parentBaseURI: currentBaseURI, parentSchema: self)
+    contains?.value.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
+    propertyNames?.value.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
     allOf?.forEach { $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self) }
     anyOf?.forEach { $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self) }
     oneOf?.forEach { $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self) }
@@ -2257,25 +2603,40 @@ extension JSONSchema {
     `if`?.value.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
     then?.value.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
     `else`?.value.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
-    unevaluatedProperties?.value.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
+    unevaluatedProperties?.value.resolveLexicalScopes(
+      parentBaseURI: currentBaseURI, parentSchema: self)
     unevaluatedItems?.value.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
-    dependentSchemas?.values.forEach { $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self) }
+    dependentSchemas?.values.forEach {
+      $0.resolveLexicalScopes(parentBaseURI: currentBaseURI, parentSchema: self)
+    }
   }
 
   public func findSchema(byURI targetURI: URL) -> JSONSchema? {
-    if let base = self.resolvedBaseURI, base == targetURI {
+    let cleanTarget = targetURI.absoluteURL
+    if let base = self.resolvedBaseURI, base.absoluteURL == cleanTarget {
       return self
     }
-    if let idStr = self.id, let idURL = URL(string: idStr), idURL == targetURI {
+    if let idStr = self.id, let idURL = URL(string: idStr), idURL.absoluteURL == cleanTarget {
       return self
     }
-    
-    if let found = properties?.values.compactMap({ $0.findSchema(byURI: targetURI) }).first { return found }
-    if let found = patternProperties?.values.compactMap({ $0.findSchema(byURI: targetURI) }).first { return found }
-    if let found = prefixItems?.compactMap({ $0.findSchema(byURI: targetURI) }).first { return found }
+
+    if let found = properties?.values.compactMap({ $0.findSchema(byURI: targetURI) }).first {
+      return found
+    }
+    if let found = patternProperties?.values.compactMap({ $0.findSchema(byURI: targetURI) }).first {
+      return found
+    }
+    if let found = prefixItems?.compactMap({ $0.findSchema(byURI: targetURI) }).first {
+      return found
+    }
     if let found = items?.value.findSchema(byURI: targetURI) { return found }
     if let found = itemArray?.compactMap({ $0.findSchema(byURI: targetURI) }).first { return found }
-    if let found = defs?.values.compactMap({ $0.findSchema(byURI: targetURI) }).first { return found }
+    if let found = defs?.values.compactMap({ $0.findSchema(byURI: targetURI) }).first {
+      return found
+    }
+    if let found = additionalProperties?.value.findSchema(byURI: targetURI) { return found }
+    if let found = contains?.value.findSchema(byURI: targetURI) { return found }
+    if let found = propertyNames?.value.findSchema(byURI: targetURI) { return found }
     if let found = allOf?.compactMap({ $0.findSchema(byURI: targetURI) }).first { return found }
     if let found = anyOf?.compactMap({ $0.findSchema(byURI: targetURI) }).first { return found }
     if let found = oneOf?.compactMap({ $0.findSchema(byURI: targetURI) }).first { return found }
@@ -2285,52 +2646,167 @@ extension JSONSchema {
     if let found = `else`?.value.findSchema(byURI: targetURI) { return found }
     if let found = unevaluatedProperties?.value.findSchema(byURI: targetURI) { return found }
     if let found = unevaluatedItems?.value.findSchema(byURI: targetURI) { return found }
-    if let found = dependentSchemas?.values.compactMap({ $0.findSchema(byURI: targetURI) }).first { return found }
-    
+    if let found = dependentSchemas?.values.compactMap({ $0.findSchema(byURI: targetURI) }).first {
+      return found
+    }
+
     return nil
   }
 
-  public func findSchema(byAnchor anchorName: String) -> JSONSchema? {
-    if self.dynamicAnchor == anchorName {
+  public func findSchema(byAnchor anchorName: String, isRootOfSearch: Bool = true) -> JSONSchema? {
+    if !isRootOfSearch, self.id != nil {
+      return nil
+    }
+    if self.anchor == anchorName || self.dynamicAnchor == anchorName {
       return self
     }
-    
-    if let found = properties?.values.compactMap({ $0.findSchema(byAnchor: anchorName) }).first { return found }
-    if let found = patternProperties?.values.compactMap({ $0.findSchema(byAnchor: anchorName) }).first { return found }
-    if let found = prefixItems?.compactMap({ $0.findSchema(byAnchor: anchorName) }).first { return found }
-    if let found = items?.value.findSchema(byAnchor: anchorName) { return found }
-    if let found = itemArray?.compactMap({ $0.findSchema(byAnchor: anchorName) }).first { return found }
-    if let found = defs?.values.compactMap({ $0.findSchema(byAnchor: anchorName) }).first { return found }
-    if let found = allOf?.compactMap({ $0.findSchema(byAnchor: anchorName) }).first { return found }
-    if let found = anyOf?.compactMap({ $0.findSchema(byAnchor: anchorName) }).first { return found }
-    if let found = oneOf?.compactMap({ $0.findSchema(byAnchor: anchorName) }).first { return found }
-    if let found = not?.value.findSchema(byAnchor: anchorName) { return found }
-    if let found = `if`?.value.findSchema(byAnchor: anchorName) { return found }
-    if let found = then?.value.findSchema(byAnchor: anchorName) { return found }
-    if let found = `else`?.value.findSchema(byAnchor: anchorName) { return found }
-    if let found = unevaluatedProperties?.value.findSchema(byAnchor: anchorName) { return found }
-    if let found = unevaluatedItems?.value.findSchema(byAnchor: anchorName) { return found }
-    if let found = dependentSchemas?.values.compactMap({ $0.findSchema(byAnchor: anchorName) }).first { return found }
-    
+
+    if let found = properties?.values.compactMap({
+      $0.findSchema(byAnchor: anchorName, isRootOfSearch: false)
+    }).first {
+      return found
+    }
+    if let found = patternProperties?.values.compactMap({
+      $0.findSchema(byAnchor: anchorName, isRootOfSearch: false)
+    }).first {
+      return found
+    }
+    if let found = prefixItems?.compactMap({
+      $0.findSchema(byAnchor: anchorName, isRootOfSearch: false)
+    }).first {
+      return found
+    }
+    if let found = items?.value.findSchema(byAnchor: anchorName, isRootOfSearch: false) {
+      return found
+    }
+    if let found = itemArray?.compactMap({
+      $0.findSchema(byAnchor: anchorName, isRootOfSearch: false)
+    }).first {
+      return found
+    }
+    if let found = defs?.values.compactMap({
+      $0.findSchema(byAnchor: anchorName, isRootOfSearch: false)
+    }).first {
+      return found
+    }
+    if let found = additionalProperties?.value.findSchema(
+      byAnchor: anchorName, isRootOfSearch: false)
+    {
+      return found
+    }
+    if let found = contains?.value.findSchema(byAnchor: anchorName, isRootOfSearch: false) {
+      return found
+    }
+    if let found = propertyNames?.value.findSchema(byAnchor: anchorName, isRootOfSearch: false) {
+      return found
+    }
+    if let found = allOf?.compactMap({ $0.findSchema(byAnchor: anchorName, isRootOfSearch: false) })
+      .first
+    {
+      return found
+    }
+    if let found = anyOf?.compactMap({ $0.findSchema(byAnchor: anchorName, isRootOfSearch: false) })
+      .first
+    {
+      return found
+    }
+    if let found = oneOf?.compactMap({ $0.findSchema(byAnchor: anchorName, isRootOfSearch: false) })
+      .first
+    {
+      return found
+    }
+
+    if let found = not?.value.findSchema(byAnchor: anchorName, isRootOfSearch: false) {
+      return found
+    }
+    if let found = `if`?.value.findSchema(byAnchor: anchorName, isRootOfSearch: false) {
+      return found
+    }
+    if let found = then?.value.findSchema(byAnchor: anchorName, isRootOfSearch: false) {
+      return found
+    }
+    if let found = `else`?.value.findSchema(byAnchor: anchorName, isRootOfSearch: false) {
+      return found
+    }
+    if let found = unevaluatedProperties?.value.findSchema(
+      byAnchor: anchorName, isRootOfSearch: false)
+    {
+      return found
+    }
+    if let found = unevaluatedItems?.value.findSchema(byAnchor: anchorName, isRootOfSearch: false) {
+      return found
+    }
+    if let found = dependentSchemas?.values.compactMap({
+      $0.findSchema(byAnchor: anchorName, isRootOfSearch: false)
+    }).first {
+      return found
+    }
+
     return nil
+  }
+
+  public func isVocabularyActive(_ vocabularyURI: String, docRoot: JSONSchema) -> Bool {
+    var metaschemaURIString: String? = nil
+    var curr: JSONSchema? = self
+    while let c = curr {
+      if let s = c.schema {
+        metaschemaURIString = s
+        break
+      }
+      curr = c.parent
+    }
+
+    guard let uriString = metaschemaURIString, let metaschemaURL = URL(string: uriString) else {
+      return true
+    }
+
+    var metaschema = docRoot.findSchema(byURI: metaschemaURL)
+    if metaschema == nil {
+      metaschema = JSONSchema.dynamicRegistry[metaschemaURL]
+    }
+    if metaschema == nil {
+      metaschema = JSONSchema.wellKnownSchemas[metaschemaURL]
+    }
+
+    guard let foundMetaschema = metaschema else {
+      return true
+    }
+
+    if let vocab = foundMetaschema.vocabulary {
+      return vocab[vocabularyURI] == true
+    }
+
+    if foundMetaschema.schema != nil {
+      return foundMetaschema.isVocabularyActive(vocabularyURI, docRoot: docRoot)
+    }
+
+    return true
   }
 
   public func resolveAbsoluteURL(_ url: URL, docRoot: JSONSchema) -> JSONSchema? {
     var components = URLComponents(url: url, resolvingAgainstBaseURL: true)
     let fragment = components?.fragment
     components?.fragment = nil
-    guard let cleanURL = components?.url else { return nil }
-    
-    guard let targetBase = docRoot.findSchema(byURI: cleanURL) else { return nil }
-    
-    if let fragment = fragment, !fragment.isEmpty {
-      if fragment.hasPrefix("/") {
-        return targetBase.resolvePointer("#" + fragment)
-      } else {
-        return targetBase.findSchema(byAnchor: fragment)
-      }
+    guard let cleanURL = components?.url?.absoluteURL else { return nil }
+
+    var targetBase = docRoot.findSchema(byURI: cleanURL)
+    if targetBase == nil {
+      targetBase = JSONSchema.dynamicRegistry[cleanURL]
     }
-    return targetBase
+    if targetBase == nil {
+      targetBase = JSONSchema.wellKnownSchemas[cleanURL]
+    }
+    guard let foundBase = targetBase else { return nil }
+
+    if let fragment = fragment, !fragment.isEmpty {
+      let foundSchema: JSONSchema?
+      if fragment.hasPrefix("/") {
+        foundSchema = foundBase.resolvePointer("#" + fragment)
+      } else {
+        foundSchema = foundBase.findSchema(byAnchor: fragment)
+      }
+      return foundSchema
+    }
+    return foundBase
   }
 }
-

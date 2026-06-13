@@ -25,7 +25,38 @@ public struct JSONSchemaParser {
 }
 
 // Retain compatibility for `JSONSchema.parse` signature
+/// A thread-safe, high-performance registry for dynamically resolved schemas.
+public final class DynamicRegistry: @unchecked Sendable {
+  private let lock = NSLock()
+  private var storage: [URL: JSONSchema] = [:]
+
+  public subscript(url: URL) -> JSONSchema? {
+    get {
+      lock.lock()
+      defer { lock.unlock() }
+      return storage[url]
+    }
+    set {
+      lock.lock()
+      defer { lock.unlock() }
+      newValue?.retrievalURI = url
+      storage[url] = newValue
+    }
+  }
+
+  public func removeAll() {
+    lock.lock()
+    defer { lock.unlock() }
+    storage.removeAll()
+  }
+}
+
 extension JSONSchema {
+  /// The global registry for dynamically resolved schemas.
+  /// Fully thread-safe and optimized to avoid dictionary copying under concurrent validation.
+  public static let dynamicRegistry = DynamicRegistry()
+  public static nonisolated(unsafe) var enableDebugPrinting = false
+
   public static func parse(_ schemaString: String) throws -> JSONSchema {
     return try JSONSchemaParser.parse(schemaString)
   }

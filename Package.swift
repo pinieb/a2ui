@@ -18,25 +18,25 @@
 import PackageDescription
 
 let package = Package(
-    name: "A2UISwiftCore",
-    platforms: [
-        .iOS(.v16)
-    ],
-    products: [
-        .library(
-            name: "A2UISwiftCore",
-            targets: ["A2UIJSON"]
-        ),
-    ],
-    targets: [
-        .target(
-            name: "A2UIJSON",
-            path: "renderers/swift_core/Sources/A2UIJSON"
-        ),
-        .testTarget(
-            name: "A2UIJSONTests",
-            dependencies: ["A2UIJSON"],
-            path: "renderers/swift_core/Tests/A2UIJSONTests"
-        ),
-    ]
+  name: "A2UISwiftCore",
+  platforms: [
+    .iOS(.v16)
+  ],
+  products: [
+    .library(
+      name: "A2UISwiftCore",
+      targets: ["A2UIJSON"]
+    )
+  ],
+  targets: [
+    .target(
+      name: "A2UIJSON",
+      path: "renderers/swift_core/Sources/A2UIJSON"
+    ),
+    .testTarget(
+      name: "A2UIJSONTests",
+      dependencies: ["A2UIJSON"],
+      path: "renderers/swift_core/Tests/A2UIJSONTests"
+    ),
+  ]
 )

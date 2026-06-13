@@ -210,7 +210,6 @@ struct A2UICommonSchemaTests {
     #expect(jsonString == expected)
   }
 
-
   @Test
   func `DynamicStringSchema validates literal strings and data bindings`()
     throws

@@ -27,7 +27,3 @@ extension A2UICommonSchema {
     }
   )
 }
-
-
-
-
