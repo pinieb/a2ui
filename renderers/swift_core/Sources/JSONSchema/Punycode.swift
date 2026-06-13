@@ -72,7 +72,8 @@ public struct Punycode {
     return String(output)
   }
 
-  /// Converts an internationalized domain name (IDN) to its ASCII Compatible Encoding (ACE) representation.
+  /// Converts an internationalized domain name (IDN) to its ASCII Compatible Encoding (ACE)
+  /// representation.
   public static func toASCII(_ domain: String) -> String {
     let labels = domain.split(separator: ".", omittingEmptySubsequences: false)
     let asciiLabels = labels.map { label -> String in

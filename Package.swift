@@ -25,17 +25,27 @@ let package = Package(
   products: [
     .library(
       name: "A2UISwiftCore",
-      targets: ["A2UIJSON"]
+      targets: ["A2UIJSON", "JSONSchema"]
     )
   ],
   targets: [
     .target(
+      name: "JSONSchema",
+      path: "renderers/swift_core/Sources/JSONSchema"
+    ),
+    .target(
       name: "A2UIJSON",
+      dependencies: ["JSONSchema"],
       path: "renderers/swift_core/Sources/A2UIJSON"
     ),
     .testTarget(
+      name: "JSONSchemaTests",
+      dependencies: ["JSONSchema"],
+      path: "renderers/swift_core/Tests/JSONSchemaTests"
+    ),
+    .testTarget(
       name: "A2UIJSONTests",
-      dependencies: ["A2UIJSON"],
+      dependencies: ["A2UIJSON", "JSONSchema"],
       path: "renderers/swift_core/Tests/A2UIJSONTests"
     ),
   ]

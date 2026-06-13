@@ -14,6 +14,7 @@
 
 import A2UIJSON
 import Foundation
+import JSONSchema
 import Testing
 
 @Suite(.serialized)
@@ -268,5 +269,20 @@ struct A2UICommonSchemaTests {
     _ = try A2UICommonSchema.dynamicValue.validate(
       instance: .array([.number(1), .number(2)])
     )
+  }
+
+  /// Regression test: Verifies that validating a standard event against the `action` schema
+  /// does not cause a crash. The `action` schema contains recursive references to `dynamicValue`
+  /// and `functionCall`, which previously caused infinite recursion / stack overflow during
+  /// validation.
+  @Test
+  func `ActionSchema validates recursive reference chains without crashing`() throws {
+    let event = JSONValue.object([
+      "event": .object([
+        "name": .string("click"),
+        "context": .object(["userID": .string("123")]),
+      ])
+    ])
+    _ = try A2UICommonSchema.action.validate(instance: event)
   }
 }

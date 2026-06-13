@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import A2UIJSON
 import Foundation
+import JSONSchema
 import Testing
 
 struct ParserTests {
@@ -553,7 +553,8 @@ struct ParserTests {
       try schema.validate(instance: .object(["a": .number(1), "b": .number(2)]))
     }
 
-    // Case 3: Trigger 'x' is present, and schema dependency is met (y is present and a string) -> valid
+    // Case 3: Trigger 'x' is present, and schema dependency is met (y is present and a string)
+    // -> valid
     _ = try schema.validate(instance: .object(["x": .number(1), "y": .string("hello")]))
 
     // Case 4: Trigger 'x' is present, but schema dependency is not met (y is missing) -> invalid
@@ -561,7 +562,8 @@ struct ParserTests {
       try schema.validate(instance: .object(["x": .number(1)]))
     }
 
-    // Case 5: Trigger 'x' is present, but schema dependency is not met (y is not a string) -> invalid
+    // Case 5: Trigger 'x' is present, but schema dependency is not met (y is not a string)
+    // -> invalid
     #expect(throws: ValidationError.self) {
       try schema.validate(instance: .object(["x": .number(1), "y": .number(123)]))
     }
@@ -782,17 +784,6 @@ struct ParserTests {
   }
 
   @Test
-  func `Diagnose action schema crash resolves correctly`() throws {
-    let event = JSONValue.object([
-      "event": .object([
-        "name": .string("click"),
-        "context": .object(["userID": .string("123")]),
-      ])
-    ])
-    _ = try A2UICommonSchema.action.validate(instance: event)
-  }
-
-  @Test
   func `Draft 2020-12 dynamic referencing works`() throws {
     let schemaJson = """
       {
@@ -857,7 +848,8 @@ struct ParserTests {
       try intTreeSchema.validate(instance: invalidInstance)
     }
 
-    // If we validate using the generic tree schema directly, it should pass because "value" can be anything
+    // If we validate using the generic tree schema directly, it should pass because
+    // "value" can be anything
     guard let genericTreeSchema = rootSchema.resolvePointer("#/$defs/tree") else {
       Issue.record("Failed to resolve generic tree schema")
       return

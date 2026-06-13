@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import A2UIJSON
 import Foundation
+import JSONSchema
 
 #if canImport(Glibc)
   import Glibc
@@ -108,7 +108,8 @@ struct ErrorContext: Encodable {
 struct BowtieHarness {
   static func main() {
     fputs(
-      "=== BowtieHarness starting. Well-known schemas count: \(JSONSchema.wellKnownSchemas.count) ===\n",
+      "=== BowtieHarness starting. Well-known schemas count: "
+        + "\(JSONSchema.wellKnownSchemas.count) ===\n",
       swiftStderr)
     fflush(swiftStderr)
 

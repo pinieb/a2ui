@@ -13,15 +13,11 @@
 // limitations under the License.
 
 import Foundation
+import JSONSchema
 
 extension A2UICommonSchema {
-  public static let accessibilityAttributes: JSONSchema = JSONSchema.stub(
-    uri: A2UICommonSchema.uri(for: "AccessibilityAttributesSchema"),
-    localSchema: JSONSchema.object {
-      JSONSchemaProperty.property("label") { JSONSchema.reference(A2UICommonSchema.dynamicString) }
-      JSONSchemaProperty.property("description") {
-        JSONSchema.reference(A2UICommonSchema.dynamicString)
-      }
-    }
+  public static let componentID: JSONSchema = JSONSchema.stub(
+    uri: A2UICommonSchema.uri(for: "ComponentIDSchema"),
+    localSchema: JSONSchema.string()
   )
 }

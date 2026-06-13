@@ -14,10 +14,7 @@
 
 import Foundation
 
-public enum A2UICommonSchema {
-  public static let baseURI = "https://a2ui.dev/schema/v0.9.1/common"
-
-  public static func uri(for defName: String) -> String {
-    "\(baseURI)/\(defName).json"
-  }
+/// The base protocol for all JSON Schema types.
+public protocol SchemaType: Codable, Sendable {
+  func validate(instance: JSONValue) throws -> ValidationOutput
 }

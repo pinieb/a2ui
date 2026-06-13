@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import Foundation
+import JSONSchema
 
 extension A2UICommonSchema {
   public static let action: JSONSchema = JSONSchema.anyOf {
@@ -36,4 +37,5 @@ extension A2UICommonSchema {
   }
 }
 
-// Note: We intentionally don't wrap this schema in a stub(uri:...) to preserve the historical flat array/object shape representation.
+// Note: We intentionally don't wrap this schema in a stub(uri:...) to preserve
+// the historical flat array/object shape representation.

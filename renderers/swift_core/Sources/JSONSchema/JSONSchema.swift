@@ -14,71 +14,6 @@
 
 import Foundation
 
-/// The base protocol for all JSON Schema types.
-public protocol SchemaType: Codable, Sendable {
-  func validate(instance: JSONValue) throws -> ValidationOutput
-}
-
-/// Supported JSON Schema types.
-public enum JSONSchemaType: String, Codable, Sendable {
-  case string
-  case number
-  case integer
-  case boolean
-  case object
-  case array
-  case null
-}
-
-/// Represents an object dependency constraint.
-public enum Dependency: Codable, Equatable, Sendable {
-  case property([String])
-  case schema(JSONSchema)
-
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    if let stringArray = try? container.decode([String].self) {
-      self = .property(stringArray)
-    } else if let schemaVal = try? container.decode(JSONSchema.self) {
-      self = .schema(schemaVal)
-    } else {
-      throw DecodingError.dataCorruptedError(
-        in: container,
-        debugDescription: "Invalid dependency: expected string array or schema"
-      )
-    }
-  }
-
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    switch self {
-    case .property(let keys):
-      try container.encode(keys)
-    case .schema(let schema):
-      try container.encode(schema)
-    }
-  }
-}
-
-/// A lightweight indirection wrapper for recursive struct properties.
-public final class Box<Val: Codable & Equatable & Sendable>: Codable, Equatable, Sendable {
-  public let value: Val
-  public init(_ value: Val) {
-    self.value = value
-  }
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    self.value = try container.decode(Val.self)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    try container.encode(value)
-  }
-  public static func == (lhs: Box<Val>, rhs: Box<Val>) -> Bool {
-    lhs.value == rhs.value
-  }
-}
-
 /// A unified, rich representation of a JSON Schema.
 public final class JSONSchema: SchemaType, Codable, Equatable, @unchecked Sendable {
   // Core Types
@@ -1583,17 +1518,30 @@ extension JSONSchema {
 
     case "ipv4":
       let ipv4Regex =
-        "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"
+        + "(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
       try verifyRegex(value, pattern: ipv4Regex, message: "invalid IPv4 format")
 
     case "ipv6":
       let ipv6Regex =
-        "^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$"
+        "^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|"
+        + "([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|"
+        + "([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|"
+        + "([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|"
+        + "([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|"
+        + "([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|"
+        + "[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|"
+        + ":((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|"
+        + "::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}"
+        + "(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|"
+        + "([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}"
+        + "(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$"
       try verifyRegex(value, pattern: ipv6Regex, message: "invalid IPv6 format")
 
     case "email":
       let emailRegex =
-        "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+        "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9]"
+        + "(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
       try verifyRegex(value, pattern: emailRegex, message: "invalid Email format")
 
     case "idn-email":
@@ -1601,13 +1549,15 @@ extension JSONSchema {
 
     case "hostname":
       let hostRegex =
-        "^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
+        "^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)*"
+        + "[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
       try verifyRegex(value, pattern: hostRegex, message: "invalid Hostname format")
 
     case "idn-hostname":
       let asciiHost = Punycode.toASCII(value)
       let hostRegex =
-        "^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
+        "^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)*"
+        + "[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
       try verifyRegex(asciiHost, pattern: hostRegex, message: "invalid Hostname format")
 
     case "json-pointer":
@@ -1621,7 +1571,8 @@ extension JSONSchema {
 
     case "uri-template":
       let templateRegex =
-        "^(?:[^\\{\\}]|\\{[+#./;?&]?[-a-zA-Z0-9_]+(?:\\*|:\\d+)?(?:,[-a-zA-Z0-9_]+(?:\\*|:\\d+)?)*\\})*$"
+        "^(?:[^\\{\\}]|\\{[+#./;?&]?[-a-zA-Z0-9_]+(?:\\*|:\\d+)??"
+        + "(?:,[-a-zA-Z0-9_]+(?:\\*|:\\d+)?)*\\})*$"
       try verifyRegex(value, pattern: templateRegex, message: "invalid URI Template format")
 
     case "uri", "iri":
@@ -1679,7 +1630,8 @@ extension JSONSchema {
 
     let asciiEmail = "\(asciiLocal)@\(asciiDomain)"
     let emailRegex =
-      "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+      "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9]"
+      + "(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
     try verifyRegex(asciiEmail, pattern: emailRegex, message: "invalid idn-email format")
   }
 
@@ -1844,7 +1796,8 @@ extension JSONSchema {
             throw ValidationError(
               path: "/",
               message:
-                "Array contains only \(matchCount) element(s) matching the 'contains' schema, expected at least \(minC)"
+                "Array contains only \(matchCount) element(s) matching the 'contains' schema, "
+                + "expected at least \(minC)"
             )
           }
 
@@ -1853,12 +1806,14 @@ extension JSONSchema {
               throw ValidationError(
                 path: "/",
                 message:
-                  "Array contains \(matchCount) element(s) matching the 'contains' schema, expected at most \(maxC)"
+                  "Array contains \(matchCount) element(s) matching the 'contains' "
+                  + "schema, expected at most \(maxC)"
               )
             }
           }
         } else {
-          // If Validation is disabled but Applicator is active, contains still requires at least 1 match by default
+          // If Validation is disabled but Applicator is active, contains still requires
+          // at least 1 match by default
           guard matchCount >= 1 else {
             throw ValidationError(
               path: "/",
@@ -2035,7 +1990,8 @@ extension JSONSchema {
                   throw ValidationError(
                     path: "/",
                     message:
-                      "Dependency requirement not met: trigger key '\(triggerKey)' requires '\(reqKey)'"
+                      "Dependency requirement not met: trigger key '\(triggerKey)' "
+                      + "requires '\(reqKey)'"
                   )
                 }
               }
@@ -2100,7 +2056,8 @@ extension JSONSchema {
                 throw ValidationError(
                   path: "/",
                   message:
-                    "Dependent requirement not met: trigger key '\(triggerKey)' requires '\(reqKey)'"
+                    "Dependent requirement not met: trigger key '\(triggerKey)' "
+                    + "requires '\(reqKey)'"
                 )
               }
             }

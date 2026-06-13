@@ -14,17 +14,6 @@
 
 import Foundation
 
-public struct JSONSchemaParser {
-  /// Parses a JSON Schema string directly into the unified `JSONSchema` struct.
-  public static func parse(_ schemaString: String) throws -> JSONSchema {
-    let data = Data(schemaString.utf8)
-    let schema = try JSONDecoder().decode(JSONSchema.self, from: data)
-    schema.resolveLexicalScopes()
-    return schema
-  }
-}
-
-// Retain compatibility for `JSONSchema.parse` signature
 /// A thread-safe, high-performance registry for dynamically resolved schemas.
 public final class DynamicRegistry: @unchecked Sendable {
   private let lock = NSLock()

@@ -39,16 +39,6 @@ public struct ValidationOutput: Sendable, Equatable {
   }
 }
 
-public struct ValidationError: Error, Sendable, Equatable {
-  public let path: String
-  public let message: String
-
-  public init(path: String, message: String) {
-    self.path = path
-    self.message = message
-  }
-}
-
 // MARK: - Internal Helpers
 
 func mergeValidationOutputs(

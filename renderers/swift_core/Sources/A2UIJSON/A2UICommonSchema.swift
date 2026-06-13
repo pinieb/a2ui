@@ -13,14 +13,12 @@
 // limitations under the License.
 
 import Foundation
+import JSONSchema
 
-extension A2UICommonSchema {
-  public static let dynamicBoolean: JSONSchema = JSONSchema.stub(
-    uri: A2UICommonSchema.uri(for: "DynamicBooleanSchema"),
-    localSchema: JSONSchema.anyOf {
-      JSONSchema.boolean()
-      JSONSchema.reference(A2UICommonSchema.dataBinding)
-      JSONSchema.reference(A2UICommonSchema.functionCall)
-    }
-  )
+public enum A2UICommonSchema {
+  public static let baseURI = "https://a2ui.dev/schema/v0.9.1/common"
+
+  public static func uri(for defName: String) -> String {
+    "\(baseURI)/\(defName).json"
+  }
 }

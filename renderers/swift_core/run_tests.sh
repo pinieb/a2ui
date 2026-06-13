@@ -39,7 +39,7 @@ if [ -n "$SIM_LINE" ]; then
   
   echo "Found simulator destination: $SIMULATOR_DEST"
   echo "Running tests..."
-  xcodebuild test -scheme A2UISwiftCore -destination "$SIMULATOR_DEST"
+  xcodebuild test -scheme A2UISwiftCore -destination "$SIMULATOR_DEST" -only-testing:JSONSchemaTests -only-testing:A2UIJSONTests
 else
   echo "Warning: No iOS Simulator destination found. Trying to build only..."
   if command -v xcrun >/dev/null 2>&1; then

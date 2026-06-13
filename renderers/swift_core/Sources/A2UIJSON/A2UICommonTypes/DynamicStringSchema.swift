@@ -13,14 +13,20 @@
 // limitations under the License.
 
 import Foundation
+import JSONSchema
 
 extension A2UICommonSchema {
-  public static let dataBinding: JSONSchema = JSONSchema.stub(
-    uri: A2UICommonSchema.uri(for: "DataBindingSchema"),
-    localSchema: JSONSchema.object(
-      additionalProperties: JSONSchema(booleanSchema: false)
-    ) {
-      JSONSchemaProperty.property("path", isRequired: true) { JSONSchema.string() }
+  public static let dynamicString: JSONSchema = JSONSchema.stub(
+    uri: A2UICommonSchema.uri(for: "DynamicStringSchema"),
+    localSchema: JSONSchema.anyOf {
+      JSONSchema.string()
+      JSONSchema.reference(A2UICommonSchema.dataBinding)
+      JSONSchema.allOf {
+        JSONSchema.reference(A2UICommonSchema.functionCall)
+        JSONSchema.object {
+          JSONSchemaProperty.property("returnType") { JSONSchema().const(.string("string")) }
+        }
+      }
     }
   )
 }

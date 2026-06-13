@@ -14,18 +14,12 @@
 
 import Foundation
 
-extension A2UICommonSchema {
-  public static let dynamicString: JSONSchema = JSONSchema.stub(
-    uri: A2UICommonSchema.uri(for: "DynamicStringSchema"),
-    localSchema: JSONSchema.anyOf {
-      JSONSchema.string()
-      JSONSchema.reference(A2UICommonSchema.dataBinding)
-      JSONSchema.allOf {
-        JSONSchema.reference(A2UICommonSchema.functionCall)
-        JSONSchema.object {
-          JSONSchemaProperty.property("returnType") { JSONSchema().const(.string("string")) }
-        }
-      }
-    }
-  )
+public struct ValidationError: Error, Sendable, Equatable {
+  public let path: String
+  public let message: String
+
+  public init(path: String, message: String) {
+    self.path = path
+    self.message = message
+  }
 }

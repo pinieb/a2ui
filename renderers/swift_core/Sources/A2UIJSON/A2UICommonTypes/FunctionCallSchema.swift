@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import Foundation
+import JSONSchema
 
 extension A2UICommonSchema {
   public static let functionCall: JSONSchema = JSONSchema.stub(

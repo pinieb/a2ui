@@ -198,7 +198,8 @@ private final class ReferenceTracker {
 
     // Detect cycle!
     guard !visiting.contains(uri) else {
-      // Register an empty stub for now to break recursion, it will be populated when the parent call unwinds.
+      // Register an empty stub for now to break recursion, it will be populated
+      // when the parent call unwinds.
       definitions[candidate] = JSONSchema(ref: nil, id: uri)
       return candidate
     }
