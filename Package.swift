@@ -27,7 +27,11 @@ let package = Package(
     .library(
       name: "A2UISwiftCore",
       targets: ["A2UIJSON", "JSONSchema", "A2UICore"]
-    )
+    ),
+    .library(
+      name: "A2UISwiftUI",
+      targets: ["A2UISwiftUI"]
+    ),
   ],
   targets: [
     .target(
@@ -44,6 +48,11 @@ let package = Package(
       dependencies: ["A2UIJSON", "JSONSchema"],
       path: "renderers/swift_core/Sources/A2UICore"
     ),
+    .target(
+      name: "A2UISwiftUI",
+      dependencies: ["A2UICore"],
+      path: "renderers/swiftui/Sources/A2UISwiftUI"
+    ),
     .testTarget(
       name: "JSONSchemaTests",
       dependencies: ["JSONSchema"],
@@ -58,6 +67,11 @@ let package = Package(
       name: "A2UICoreTests",
       dependencies: ["A2UICore", "A2UIJSON", "JSONSchema"],
       path: "renderers/swift_core/Tests/A2UICoreTests"
+    ),
+    .testTarget(
+      name: "A2UISwiftUITests",
+      dependencies: ["A2UISwiftUI", "A2UICore"],
+      path: "renderers/swiftui/Tests/A2UISwiftUITests"
     ),
   ]
 )
