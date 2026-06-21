@@ -1,10 +1,11 @@
 # A2UI Swift Core Coding Standards
 
-This document outlines the coding standards, style guidelines, and best practices for developing
-and maintaining Swift components within the A2UI (Agent-to-User Interface) monorepo.
+These standards supplement the [Google Swift Style Guide](https://google.github.io/swift/)
+and provide specific rules, testing standards, and best practices for developing and
+maintaining Swift components within the A2UI (Agent-to-User Interface) monorepo.
 
-Following these guidelines ensures that our codebase remains clean, modular, and reliable for all
-developers and agents.
+Following these guidelines ensures that our codebase remains clean, modular, and reliable for
+all developers and agents.
 
 ## Table of Contents
 
