@@ -38,7 +38,7 @@ let package = Package(
     .testTarget(
       name: "JSONSchemaTests",
       dependencies: [
-        "JSONSchema",
+        "JSONSchema"
       ],
       path: "renderers/swift_core/Tests/JSONSchemaTests"
     ),

@@ -44,7 +44,9 @@ public enum JSONValue: Codable, Sendable, Equatable {
       self = .array(try container.decode([JSONValue].self))
       return
     } catch let error as DecodingError {
-      if case .typeMismatch(_, let context) = error, context.codingPath.count == decoder.codingPath.count {
+      if case .typeMismatch(_, let context) = error,
+        context.codingPath.count == decoder.codingPath.count
+      {
         // Not an array, try next type
       } else {
         throw error
@@ -54,7 +56,9 @@ public enum JSONValue: Codable, Sendable, Equatable {
       self = .object(try container.decode([String: JSONValue].self))
       return
     } catch let error as DecodingError {
-      if case .typeMismatch(_, let context) = error, context.codingPath.count == decoder.codingPath.count {
+      if case .typeMismatch(_, let context) = error,
+        context.codingPath.count == decoder.codingPath.count
+      {
         // Not an object, try next type
       } else {
         throw error
