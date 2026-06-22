@@ -22,9 +22,17 @@ public struct SchemaNode: Sendable {
   /// The keyword evaluators defined for this schema node.
   public let evaluators: [any KeywordEvaluator]
 
+  /// The dynamic anchor string if defined on this schema node.
+  public let dynamicAnchor: String?
+
   /// Initializes a new SchemaNode.
-  public init(identity: SchemaIdentity, evaluators: [any KeywordEvaluator]) {
+  public init(
+    identity: SchemaIdentity,
+    dynamicAnchor: String? = nil,
+    evaluators: [any KeywordEvaluator]
+  ) {
     self.identity = identity
+    self.dynamicAnchor = dynamicAnchor
     self.evaluators = evaluators
   }
 

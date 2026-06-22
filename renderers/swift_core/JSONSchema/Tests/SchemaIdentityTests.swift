@@ -46,7 +46,7 @@ struct SchemaIdentityTests {
     #expect(step2.fullURI == "https://example.com/schema#/properties/age")
   }
 
-  @Test func testIdBaseReset() throws {
+  @Test func testIDBaseReset() throws {
     // Start with an identity http://api.com/v1#/properties/user.
     // Call updatingBaseURI(to: "http://api.com/v2/user").
     // Assert the new full URI is exactly http://api.com/v2/user# (the pointer is wiped clean).

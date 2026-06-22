@@ -40,6 +40,7 @@ public final class SchemaRegistry: @unchecked Sendable {
   public func resolve(uri: String) -> SchemaNode? {
     lock.lock()
     defer { lock.unlock() }
-    return cache[uri]
+    let normalized = SchemaIdentity(uri: uri).fullURI
+    return cache[normalized]
   }
 }
