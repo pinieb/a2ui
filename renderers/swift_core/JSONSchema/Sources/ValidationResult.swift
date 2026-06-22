@@ -38,7 +38,7 @@ public struct ValidationResult: Sendable, Equatable {
   public init(
     isValid: Bool,
     instanceLocation: JSONPointer = JSONPointer(),
-    schemaLocation: SchemaIdentity = SchemaIdentity(baseURI: ""),
+    schemaLocation: SchemaIdentity = .empty,
     errors: [String] = [],
     annotations: [String: JSONValue] = [:],
     childResults: [ValidationResult] = []

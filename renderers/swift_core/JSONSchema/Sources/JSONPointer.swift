@@ -15,7 +15,7 @@
 import Foundation
 
 /// A utility to handle RFC 6901 JSON Pointer mechanics.
-public struct JSONPointer: Sendable, Equatable {
+public struct JSONPointer: Sendable, Equatable, Hashable {
   /// The unescaped path segments of the JSON Pointer.
   public let segments: [String]
 
@@ -27,7 +27,7 @@ public struct JSONPointer: Sendable, Equatable {
 
   /// Initializes a JSON Pointer by parsing its escaped string representation.
   /// - Parameter stringRepresentation: The escaped JSON Pointer string.
-  public init(stringRepresentation: String) {
+  public init?(stringRepresentation: String) {
     var path = stringRepresentation
     let isFragment = path.hasPrefix("#")
     if isFragment {
@@ -44,8 +44,7 @@ public struct JSONPointer: Sendable, Equatable {
     }
 
     guard path.hasPrefix("/") else {
-      self.segments = []
-      return
+      return nil
     }
 
     let parts = path.components(separatedBy: "/")
