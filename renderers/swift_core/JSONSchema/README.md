@@ -21,6 +21,12 @@ language (DSL) builder.
   individual JSON Schema keywords (e.g., `type`, `properties`, `required`).
 - **[ValidationContext](ValidationContext.swift)**: Tracks recursion depth and path locations
   during a validation run to enforce configuration limits (such as max evaluation depth).
+- **[SchemaRegistry](Sources/SchemaRegistry.swift)**: A thread-safe cache for compiled
+  `SchemaNode` references.
+- **[KeywordRegistry](Sources/KeywordRegistry.swift)**: Provides the registration mechanism
+  mapping string keywords to evaluator factories.
+- **[SchemaCompiler](Sources/SchemaCompiler.swift)**: Provides compiler interface/context
+  for resolving reference schemas and compiling nested schemas recursively.
 
 ---
 

@@ -14,7 +14,32 @@
 
 import Foundation
 
-/// Stub for SchemaRegistry, to be expanded in Task 4.
-public final class SchemaRegistry: Sendable {
+/// A thread-safe registry that acts as a cache for compiled JSON Schema nodes.
+///
+/// This registry allows for schema composition and reference resolution ($ref)
+/// by maintaining a mapping from full schema URIs to their compiled representation.
+public final class SchemaRegistry: @unchecked Sendable {
+  private let lock = NSLock()
+  private var cache: [String: SchemaNode] = [:]
+
   public init() {}
+
+  /// Registers a compiled schema node under the specified identity.
+  /// - Parameters:
+  ///   - node: The compiled SchemaNode to cache.
+  ///   - identity: The SchemaIdentity containing the full URI for the node.
+  public func register(_ node: SchemaNode, for identity: SchemaIdentity) {
+    lock.lock()
+    defer { lock.unlock() }
+    cache[identity.fullURI] = node
+  }
+
+  /// Resolves and retrieves a compiled schema node by its full URI string.
+  /// - Parameter uri: The full URI string of the schema to retrieve.
+  /// - Returns: The cached SchemaNode, or nil if not found.
+  public func resolve(uri: String) -> SchemaNode? {
+    lock.lock()
+    defer { lock.unlock() }
+    return cache[uri]
+  }
 }
