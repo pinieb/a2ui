@@ -15,7 +15,7 @@
 import Foundation
 
 /// Represents the identity of a JSON Schema node, combining a Base URI and a JSON Pointer.
-public struct SchemaIdentity: Sendable, Equatable {
+public struct SchemaIdentity: Sendable, Equatable, Hashable {
   /// The base URI of the schema (represented as a String to support arbitrary
   /// URNs or relative reference URI strings without pre-parsing failures).
   public let baseURI: String

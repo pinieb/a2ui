@@ -15,7 +15,7 @@
 import Foundation
 
 /// A utility to handle RFC 6901 JSON Pointer mechanics.
-public struct JSONPointer: Sendable, Equatable {
+public struct JSONPointer: Sendable, Equatable, Hashable {
   /// The unescaped path segments of the JSON Pointer.
   public let segments: [String]
 
