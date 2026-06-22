@@ -53,7 +53,7 @@ struct ExecutionContractsTests {
     }
 
     let node = SchemaNode(
-      identity: SchemaIdentity(baseURI: "https://example.com/test"),
+      identity: try #require(SchemaIdentity(baseURI: "https://example.com/test")),
       evaluators: [evaluatorA, evaluatorB]
     )
 
@@ -73,7 +73,7 @@ struct ExecutionContractsTests {
     }
 
     let node = SchemaNode(
-      identity: SchemaIdentity(baseURI: "https://example.com/test"),
+      identity: try #require(SchemaIdentity(baseURI: "https://example.com/test")),
       evaluators: [evaluatorFail, evaluatorPass]
     )
 

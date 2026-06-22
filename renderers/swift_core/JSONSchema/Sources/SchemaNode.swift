@@ -62,7 +62,7 @@ public struct SchemaNode: Sendable {
       instanceLocation: context.instanceLocation,
       schemaLocation: identity,
       errors: errors,
-      annotations: annotations,
+      annotations: isValid ? annotations : [:],
       childResults: childResults
     )
   }
