@@ -11,15 +11,15 @@ language (DSL) builder.
 
 ## Key Core Types
 
-- **[JSONValue](JSONValue.swift)**: Represents any valid JSON value (`null`, `boolean`,
-  `number`, `string`, `array`, `object`) conforming to `Codable`, `Sendable`, and `Hashable`.
-- **[JSONPointer](JSONPointer.swift)**: Implements RFC 6901 JSON Pointer for path-based indexing
-  into a `JSONValue` structure.
-- **[SchemaNode](SchemaNode.swift)**: Represents a compiled schema node. It evaluates a
+- **[JSONValue](Sources/JSONValue.swift)**: Represents any valid JSON value (`null`, `boolean`,
+  `number`, `string`, `array`, `object`) conforming to `Codable`, `Sendable`, and `Equatable`.
+- **[JSONPointer](Sources/JSONPointer.swift)**: Implements RFC 6901 JSON Pointer for path-based
+  indexing into a `JSONValue` structure.
+- **[SchemaNode](Sources/SchemaNode.swift)**: Represents a compiled schema node. It evaluates a
   `JSONValue` instance using a collection of registered keyword evaluators.
-- **[KeywordEvaluator](KeywordEvaluator.swift)**: A protocol implemented by evaluators for
+- **[KeywordEvaluator](Sources/KeywordEvaluator.swift)**: A protocol implemented by evaluators for
   individual JSON Schema keywords (e.g., `type`, `properties`, `required`).
-- **[ValidationContext](ValidationContext.swift)**: Tracks recursion depth and path locations
+- **[ValidationContext](Sources/ValidationContext.swift)**: Tracks recursion depth and path locations
   during a validation run to enforce configuration limits (such as max evaluation depth).
 - **[SchemaRegistry](Sources/SchemaRegistry.swift)**: A thread-safe cache for compiled
   `SchemaNode` references.
