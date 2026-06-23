@@ -44,12 +44,7 @@ public struct SchemaIdentity: Sendable, Equatable, Hashable {
   ///   - pointer: The JSON Pointer.
   public init?(baseURI: String, pointer: JSONPointer = JSONPointer()) {
     let parts = baseURI.components(separatedBy: "#")
-    let rawBase = parts.first ?? ""
-    if rawBase.hasSuffix("#") {
-      self.baseURI = String(rawBase.dropLast())
-    } else {
-      self.baseURI = rawBase
-    }
+    self.baseURI = parts.first ?? ""
 
     if parts.count > 1 {
       let fragment = "#" + parts[1...].joined(separator: "#")
@@ -66,12 +61,7 @@ public struct SchemaIdentity: Sendable, Equatable, Hashable {
   /// - Parameter uri: The full URI string (e.g., "https://example.com/schema#/properties/name").
   public init?(uri: String) {
     let parts = uri.components(separatedBy: "#")
-    let rawBase = parts.first ?? ""
-    if rawBase.hasSuffix("#") {
-      self.baseURI = String(rawBase.dropLast())
-    } else {
-      self.baseURI = rawBase
-    }
+    self.baseURI = parts.first ?? ""
 
     if parts.count > 1 {
       let fragment = "#" + parts[1...].joined(separator: "#")
