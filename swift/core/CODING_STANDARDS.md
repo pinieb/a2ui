@@ -111,7 +111,7 @@ Writing excellent tests ensures high confidence in our SDKs and services.
 
 - **Running Tests:** Use the `run_tests.sh` script to run tests on the root package:
   ```bash
-  cd renderers/swift_core && ./run_tests.sh
+  cd swift/core && ./run_tests.sh
   ```
 
 ---
@@ -120,5 +120,5 @@ Writing excellent tests ensures high confidence in our SDKs and services.
 
 - **Compiler Warnings:** Avoid introducing compiler warnings. Fix warnings as they appear,
   for example, by replacing unmutated variables (`var`) with constants (`let`).
-- **Directory Structure:** All sources must reside under `<TargetName>/Sources` and all test
-  files under `<TargetName>/Tests` following standard Swift Package Manager conventions.
+- **Directory Structure:** All sources must reside under `<ModuleName>/Sources` and all test
+  files under `<ModuleName>/Tests`.
