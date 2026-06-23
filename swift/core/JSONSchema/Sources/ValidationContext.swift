@@ -56,4 +56,28 @@ public struct ValidationContext: Sendable {
       depth: depth + 1
     )
   }
+
+  /// Returns a new context for validating a child element at an array index.
+  /// - Parameter index: The index to append to the current instance location.
+  /// - Returns: A new ValidationContext with incremented depth and updated location.
+  /// - Throws: ValidationError.maxDepthExceeded if the depth limit is reached.
+  public func passingDown(toInstanceIndex index: Int) throws -> ValidationContext {
+    return try passingDown(toInstanceKey: String(index))
+  }
+
+  /// Returns a new context with incremented depth.
+  /// - Returns: A new ValidationContext with incremented depth.
+  /// - Throws: ValidationError.maxDepthExceeded if the depth limit is reached.
+  public func incrementingDepth() throws -> ValidationContext {
+    guard depth < configuration.maxEvaluationDepth else {
+      throw ValidationError.maxDepthExceeded
+    }
+    return ValidationContext(
+      configuration: configuration,
+      schemaRegistry: schemaRegistry,
+      instanceLocation: instanceLocation,
+      depth: depth + 1
+    )
+  }
 }
+

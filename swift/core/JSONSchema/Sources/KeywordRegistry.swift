@@ -43,10 +43,10 @@ public struct KeywordRegistry: Sendable {
 }
 
 extension KeywordRegistry {
-  /// A default KeywordRegistry pre-configured with all core JSON Schema keywords.
   public static var `default`: KeywordRegistry {
     var registry = KeywordRegistry()
     registry.registerCoreKeywords()
+    registry.registerApplicatorKeywords()
     return registry
   }
 
@@ -77,4 +77,24 @@ extension KeywordRegistry {
       ExclusiveMinimumEvaluator(limit: data)
     }
   }
+
+  /// Registers all applicator validation keywords into this registry.
+  public mutating func registerApplicatorKeywords() {
+    register(keyword: "properties") { data, identity, compiler in
+      try PropertiesEvaluator(data: data, identity: identity, compiler: compiler)
+    }
+    register(keyword: "items") { data, identity, compiler in
+      try ItemsEvaluator(data: data, identity: identity, compiler: compiler)
+    }
+    register(keyword: "allOf") { data, identity, compiler in
+      try AllOfEvaluator(data: data, identity: identity, compiler: compiler)
+    }
+    register(keyword: "anyOf") { data, identity, compiler in
+      try AnyOfEvaluator(data: data, identity: identity, compiler: compiler)
+    }
+    register(keyword: "not") { data, identity, compiler in
+      try NotEvaluator(data: data, identity: identity, compiler: compiler)
+    }
+  }
 }
+
