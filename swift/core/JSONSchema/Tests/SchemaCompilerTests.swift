@@ -31,7 +31,7 @@ struct SchemaCompilerTests {
   @Test func testBooleanSchemas() throws {
     let registry = SchemaRegistry()
     let compiler = SchemaCompiler(schemaRegistry: registry)
-    let identity = SchemaIdentity(uri: "https://example.com/schema")
+    let identity = try #require(SchemaIdentity(uri: "https://example.com/schema"))
 
     let trueNode = try compiler.compile(
       schemaData: .boolean(true),
@@ -44,10 +44,10 @@ struct SchemaCompilerTests {
 
     let context = ValidationContext(schemaRegistry: registry)
 
-    let trueResult = trueNode.evaluate(instance: .object([:]), context: context)
+    let trueResult = trueNode.evaluate(instance: .object([String: JSONValue]()), context: context)
     #expect(trueResult.isValid == true)
 
-    let falseResult = falseNode.evaluate(instance: .object([:]), context: context)
+    let falseResult = falseNode.evaluate(instance: .object([String: JSONValue]()), context: context)
     #expect(falseResult.isValid == false)
   }
 
@@ -81,7 +81,7 @@ struct SchemaCompilerTests {
       ])
     ])
 
-    let identity = SchemaIdentity(uri: "https://example.com/root")
+    let identity = try #require(SchemaIdentity(uri: "https://example.com/root"))
     _ = try compiler.compile(schemaData: rootSchema, identity: identity)
 
     let resolved = try #require(registry.resolve(uri: "https://test.com/child"))
@@ -99,7 +99,7 @@ struct SchemaCompilerTests {
       ])
     ])
 
-    let identity = SchemaIdentity(uri: "https://example.com/root")
+    let identity = try #require(SchemaIdentity(uri: "https://example.com/root"))
     _ = try compiler.compile(schemaData: rootSchema, identity: identity)
 
     let defURI = "https://example.com/root#/$defs/user"
