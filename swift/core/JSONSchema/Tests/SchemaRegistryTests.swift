@@ -29,4 +29,22 @@ struct SchemaRegistryTests {
       registry.resolve(uri: "https://example.com/schema#/properties/name"))
     #expect(resolved.identity == identity)
   }
+
+  @Test func testSchemaResolutionNormalization() throws {
+    let registry = SchemaRegistry()
+    let identityWithoutHash = try #require(SchemaIdentity(uri: "https://example.com/schema"))
+    let node = SchemaNode(identity: identityWithoutHash, evaluators: [])
+
+    registry.register(node, for: identityWithoutHash)
+
+    // Resolve using uri with trailing hash
+    let resolvedWithHash = try #require(
+      registry.resolve(uri: "https://example.com/schema#"))
+    #expect(resolvedWithHash.identity == identityWithoutHash)
+
+    // Resolve using uri without trailing hash
+    let resolvedWithoutHash = try #require(
+      registry.resolve(uri: "https://example.com/schema"))
+    #expect(resolvedWithoutHash.identity == identityWithoutHash)
+  }
 }

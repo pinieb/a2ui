@@ -99,9 +99,11 @@ struct SchemaIdentityTests {
     // Test that invalid representations of JSONPointer fail to parse.
     #expect(JSONPointer(stringRepresentation: "properties/name") == nil)
     #expect(JSONPointer(stringRepresentation: "#properties/name") == nil)
+    #expect(JSONPointer(stringRepresentation: "#/properties/name%2") == nil)
 
     // Test that SchemaIdentity fails to parse if the fragment is an invalid JSONPointer.
     #expect(SchemaIdentity(uri: "https://example.com/schema#properties/name") == nil)
+    #expect(SchemaIdentity(uri: "https://example.com/schema#/properties/name%2") == nil)
   }
 
   @Test func testNormalizeBaseURIFragment() throws {

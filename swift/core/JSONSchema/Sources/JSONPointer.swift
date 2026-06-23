@@ -35,7 +35,10 @@ public struct JSONPointer: Sendable, Equatable, Hashable {
     }
 
     if isFragment {
-      path = path.removingPercentEncoding ?? path
+      guard let decodedPath = path.removingPercentEncoding else {
+        return nil
+      }
+      path = decodedPath
     }
 
     if path.isEmpty {
