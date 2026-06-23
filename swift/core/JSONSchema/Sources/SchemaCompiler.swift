@@ -28,7 +28,7 @@ public final class SchemaCompiler: Sendable {
   ///   - keywordRegistry: The keyword registry.
   public init(
     schemaRegistry: SchemaRegistry,
-    keywordRegistry: KeywordRegistry = KeywordRegistry()
+    keywordRegistry: KeywordRegistry = .default
   ) {
     self.schemaRegistry = schemaRegistry
     self.keywordRegistry = keywordRegistry

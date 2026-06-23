@@ -41,3 +41,40 @@ public struct KeywordRegistry: Sendable {
     return try factory(data, identity, compiler)
   }
 }
+
+extension KeywordRegistry {
+  /// A default KeywordRegistry pre-configured with all core JSON Schema keywords.
+  public static var `default`: KeywordRegistry {
+    var registry = KeywordRegistry()
+    registry.registerCoreKeywords()
+    return registry
+  }
+
+  /// Registers all core validation keywords into this registry.
+  public mutating func registerCoreKeywords() {
+    register(keyword: "type") { data, _, _ in
+      TypeEvaluator(allowedTypes: data)
+    }
+    register(keyword: "const") { data, _, _ in
+      ConstEvaluator(expectedValue: data)
+    }
+    register(keyword: "enum") { data, _, _ in
+      EnumEvaluator(allowedValues: data)
+    }
+    register(keyword: "multipleOf") { data, _, _ in
+      MultipleOfEvaluator(divisor: data)
+    }
+    register(keyword: "maximum") { data, _, _ in
+      MaximumEvaluator(limit: data)
+    }
+    register(keyword: "exclusiveMaximum") { data, _, _ in
+      ExclusiveMaximumEvaluator(limit: data)
+    }
+    register(keyword: "minimum") { data, _, _ in
+      MinimumEvaluator(limit: data)
+    }
+    register(keyword: "exclusiveMinimum") { data, _, _ in
+      ExclusiveMinimumEvaluator(limit: data)
+    }
+  }
+}

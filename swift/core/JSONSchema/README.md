@@ -12,7 +12,7 @@ language (DSL) builder.
 ## Key Core Types
 
 - **[JSONValue](JSONValue.swift)**: Represents any valid JSON value (`null`, `boolean`,
-  `number`, `string`, `array`, `object`) conforming to `Codable`, `Sendable`, and `Equatable`.
+  `number`, `string`, `array`, `object`) conforming to `Codable`, `Sendable`, and `Hashable`.
 - **[JSONPointer](JSONPointer.swift)**: Implements RFC 6901 JSON Pointer for path-based indexing
   into a `JSONValue` structure.
 - **[SchemaNode](SchemaNode.swift)**: Represents a compiled schema node. It evaluates a
