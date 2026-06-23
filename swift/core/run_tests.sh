@@ -1,10 +1,11 @@
+#!/bin/bash
 # Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,22 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-**/node_modules
-**/dist
-**/build
-**/.wireit
-**/*.tsbuildinfo
-.git
-.dart_tool
-.venv
-*.min.js
-agent_sdks/conformance/test_data/**
-**/pnpm-lock.yaml
-renderers/angular/a2ui_explorer/src/app/generated/**
-renderers/lit/a2ui_explorer/src/generated/**
-.next
-**/.next
+set -euo pipefail
 
-# Evaluation logs
-eval/logs
-**/eval/logs
+# Get repo root
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+echo "Running Swift tests on the package at the root..."
+swift test --package-path "$REPO_ROOT" --enable-swift-testing
