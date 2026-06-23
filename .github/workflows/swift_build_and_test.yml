@@ -19,13 +19,13 @@ on:
   push:
     branches: [main]
     paths:
-      - "renderers/swift/core/**"
+      - "swift/core/**"
       - "Package.swift"
       - ".github/workflows/swift_build_and_test.yml"
   pull_request:
     branches: [main]
     paths:
-      - "renderers/swift/core/**"
+      - "swift/core/**"
       - "Package.swift"
       - ".github/workflows/swift_build_and_test.yml"
 

@@ -1,7 +1,7 @@
 {
   "folders": [
     {
-      "path": "renderers/swift/core",
+      "path": "swift/core",
     },
     {
       "path": "renderers/swiftui",
