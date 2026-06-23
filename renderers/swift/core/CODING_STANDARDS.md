@@ -111,7 +111,7 @@ Writing excellent tests ensures high confidence in our SDKs and services.
 
 - **Running Tests:** Use the `run_tests.sh` script to run tests on the root package:
   ```bash
-  cd renderers/swift_core && ./run_tests.sh
+  cd renderers/swift/core && ./run_tests.sh
   ```
 
 ---

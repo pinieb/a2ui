@@ -1,6 +1,6 @@
 # A2UI Swift Core Agent Guide (AGENTS.md)
 
-This document is the authoritative guide for AI agents operating within the `renderers/swift_core`
+This document is the authoritative guide for AI agents operating within the `renderers/swift/core`
 directory. It outlines target boundaries, coding conventions, and verification protocols.
 
 ---

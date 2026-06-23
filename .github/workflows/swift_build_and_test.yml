@@ -19,15 +19,15 @@ on:
   push:
     branches: [main]
     paths:
-      - "renderers/swift_core/**"
+      - "renderers/swift/core/**"
       - "Package.swift"
-      - ".github/workflows/swift_core_build_and_test.yml"
+      - ".github/workflows/swift_build_and_test.yml"
   pull_request:
     branches: [main]
     paths:
-      - "renderers/swift_core/**"
+      - "renderers/swift/core/**"
       - "Package.swift"
-      - ".github/workflows/swift_core_build_and_test.yml"
+      - ".github/workflows/swift_build_and_test.yml"
 
 permissions:
   contents: read
