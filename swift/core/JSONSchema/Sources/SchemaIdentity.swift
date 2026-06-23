@@ -26,7 +26,8 @@ public struct SchemaIdentity: Sendable, Equatable, Hashable {
   /// An empty SchemaIdentity.
   public static let empty = SchemaIdentity(uncheckedBaseURI: "")
 
-  /// Initializes a SchemaIdentity with a base URI and optional JSON Pointer, without validation or parsing.
+  /// Initializes a SchemaIdentity with a base URI and optional JSON Pointer,
+  /// without validation or parsing.
   internal init(uncheckedBaseURI baseURI: String, pointer: JSONPointer = JSONPointer()) {
     if baseURI.hasSuffix("#") {
       self.baseURI = String(baseURI.dropLast())
