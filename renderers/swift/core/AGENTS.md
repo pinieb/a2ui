@@ -19,28 +19,10 @@ The package is divided into distinct targets. Agents must strictly respect their
 
 ## 2. Mandatory Coding Conventions for Agents
 
-When creating or modifying Swift source files, agents **MUST** strictly adhere to these rules:
-
-1. **One Type, One File**:
-   - Every class, struct, enum, and protocol must reside in its own dedicated Swift file named
-     exactly after the type (e.g. `Box.swift`). Do not group multiple primary types in a single
-     file.
-
-2. **100-Character Column Limit**:
-   - **No line of code, comment, docstring, or raw JSON block may exceed 100 characters.**
-   - You must wrap long lines across multiple lines. For long string literals, use Swift
-     multiline string literals (`"""`) or indentations where appropriate.
-
-3. **Mandatory Copyright Headers**:
-   - Every new file you create must include the standard Google Apache 2.0 copyright header at the
-     very top. Refer to the header template in
-     [CODING_STANDARDS.md](CODING_STANDARDS.md#3-headers-copyright-and-license).
-
-4. **Swift Testing Suites**:
-   - In Swift Testing, class and struct declarations containing `@Test` functions do not
-     require the `@Suite` attribute unless they need custom configuration (like
-     displayName or traits). Omit redundant `@Suite` attributes to keep test files clean
-     and idiomatic.
+When creating or modifying Swift source files, agents **MUST** strictly adhere to 
+[CODING_STANDARDS.md](CODING_STANDARDS.md) and 
+[Google Swift Style Guide](https://google.github.io/swift/). Review both guides
+before writing any code.
 
 ---
 
