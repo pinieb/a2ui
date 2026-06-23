@@ -33,14 +33,14 @@ let package = Package(
     .target(
       name: "JSONSchema",
       dependencies: [],
-      path: "renderers/swift/core/Sources/JSONSchema"
+      path: "renderers/swift/core/JSONSchema/Sources"
     ),
     .testTarget(
       name: "JSONSchemaTests",
       dependencies: [
         "JSONSchema"
       ],
-      path: "renderers/swift/core/Tests/JSONSchemaTests"
+      path: "renderers/swift/core/JSONSchema/Tests"
     ),
   ]
 )
