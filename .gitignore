@@ -125,14 +125,3 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-
-# Xcode
-xcuserdata/
-
-# Swift Package Manager
-Packages/
-Package.pins
-Package.resolved
-*.xcodeproj
-.swiftpm
-.build/

@@ -33,15 +33,15 @@ struct KeywordRegistryTests {
 
     let schemaRegistry = SchemaRegistry()
     let compiler = SchemaCompiler(schemaRegistry: schemaRegistry)
-    let identity = SchemaIdentity(uri: "https://example.com/schema")
+    let identity = try #require(SchemaIdentity(uri: "https://example.com/schema"))
 
-    let evaluator = try #require(
-      try registry.makeEvaluator(
-        for: "dummyRule",
-        data: .null,
-        identity: identity,
-        compiler: compiler
-      ))
+    let optionalEvaluator = try registry.makeEvaluator(
+      for: "dummyRule",
+      data: .null,
+      identity: identity,
+      compiler: compiler
+    )
+    let evaluator = try #require(optionalEvaluator)
 
     #expect(evaluator is DummyKeywordEvaluator)
   }
@@ -50,7 +50,7 @@ struct KeywordRegistryTests {
     let registry = KeywordRegistry()
     let schemaRegistry = SchemaRegistry()
     let compiler = SchemaCompiler(schemaRegistry: schemaRegistry)
-    let identity = SchemaIdentity(uri: "https://example.com/schema")
+    let identity = try #require(SchemaIdentity(uri: "https://example.com/schema"))
 
     let evaluator = try registry.makeEvaluator(
       for: "unknownRule",

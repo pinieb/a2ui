@@ -20,7 +20,7 @@ struct SchemaRegistryTests {
 
   @Test func testSchemaRegistration() throws {
     let registry = SchemaRegistry()
-    let identity = SchemaIdentity(uri: "https://example.com/schema#/properties/name")
+    let identity = try #require(SchemaIdentity(uri: "https://example.com/schema#/properties/name"))
     let node = SchemaNode(identity: identity, evaluators: [])
 
     registry.register(node, for: identity)
