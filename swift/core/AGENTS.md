@@ -9,7 +9,7 @@ directory. It outlines target boundaries, coding conventions, and verification p
 
 The package is divided into distinct targets. Agents must strictly respect their boundaries:
 
-1. **`JSONSchema`** (`JSONSchema/Sources`):
+1. **`JSONSchema`** (`Sources/JSONSchema`):
    - **Purpose**: Generic JSON Schema Draft 2020-12 validator and DSL builder.
    - **Rule**: **NEVER** add A2UI-specific types, schemas, event validations, or
      tests here. Keep this target completely independent, generic, and
