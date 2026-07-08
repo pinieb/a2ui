@@ -54,7 +54,14 @@ let package = Package(
     ),
     .target(
       name: "A2UICore",
-      dependencies: ["A2UIJSON"],
+      dependencies: [
+        "A2UIJSON",
+        .product(name: "JSONSchema", package: "swift-json-schema"),
+        .product(
+          name: "OrderedJSON",
+          package: "swift-json-schema"
+        ),
+      ],
       path: "swift/core/Sources/A2UICore"
     ),
 
