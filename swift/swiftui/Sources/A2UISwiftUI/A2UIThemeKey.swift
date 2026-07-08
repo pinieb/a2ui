@@ -15,6 +15,16 @@
 import A2UICore
 import SwiftUI
 
-// A2UISwiftUI — Thin SwiftUI rendering layer for A2UI.
-// This file is intentionally a placeholder; real types (Surface, CatalogView,
-// DataBinding+SwiftUI, A2UIThemeKey) will be added in a future PR.
+/// Environment key for propagating the active `SurfaceTheme` through
+/// the SwiftUI view hierarchy.
+public struct A2UIThemeKey: EnvironmentKey {
+  public static let defaultValue: (any SurfaceTheme)? = nil
+}
+
+extension EnvironmentValues {
+  /// The active A2UI surface theme, if any.
+  public var a2uiTheme: (any SurfaceTheme)? {
+    get { self[A2UIThemeKey.self] }
+    set { self[A2UIThemeKey.self] = newValue }
+  }
+}

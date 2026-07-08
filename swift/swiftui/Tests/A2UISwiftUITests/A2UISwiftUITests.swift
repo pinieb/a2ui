@@ -12,11 +12,182 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import A2UICore
+import A2UIJSON
 import A2UISwiftUI
+import JSONSchema
+import OrderedJSON
+import SwiftUI
 import Testing
 
-struct A2UISwiftUITests {
-  @Test func placeholderTest() {
-    #expect(Bool(true))
+// MARK: - Test Helpers
+
+/// A simple catalog view for testing that renders a text label.
+struct TestCatalogView: CatalogView {
+  let node: Node
+
+  init(node: Node) {
+    self.node = node
+  }
+
+  var body: some View {
+    VStack {
+      Text("Type: \(node.type)")
+      Text("ID: \(node.id)")
+    }
+  }
+}
+
+/// A simple theme for testing.
+struct TestRenderTheme: SurfaceTheme {
+  let color: String
+}
+
+// MARK: - Surface Tests
+
+struct SurfaceTests {
+
+  @Test func surfaceInitializesWithViewModel() throws {
+    let catalog = try TestSurfaceCatalogForRendering()
+    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
+    let surface = Surface<TestCatalogView>(viewModel: vm, catalogType: TestCatalogView.self)
+    #expect(surface.surfaceID == "s1")
+  }
+
+  @Test func surfaceEqualityBySurfaceID() throws {
+    let catalog = try TestSurfaceCatalogForRendering()
+    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
+    let a = Surface<TestCatalogView>(viewModel: vm, catalogType: TestCatalogView.self)
+    let b = Surface<TestCatalogView>(viewModel: vm, catalogType: TestCatalogView.self)
+    #expect(a == b)
+  }
+
+  @Test func surfaceInequalityByDifferentSurfaceID() throws {
+    let catalog = try TestSurfaceCatalogForRendering()
+    let vm1 = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
+    let vm2 = SurfaceViewModel(surfaceID: "s2", catalog: catalog)
+    let a = Surface<TestCatalogView>(viewModel: vm1, catalogType: TestCatalogView.self)
+    let b = Surface<TestCatalogView>(viewModel: vm2, catalogType: TestCatalogView.self)
+    #expect(a != b)
+  }
+}
+
+// MARK: - DataBinding+SwiftUI Tests
+
+struct DataBindingSwiftUITests {
+
+  @Test func swiftUIBindingGetsValue() {
+    let box = TestBox("hello")
+    let binding = DataBinding<String>(
+      identity: .path("/text"),
+      get: { box.value },
+      set: { box.value = $0 }
+    )
+    let swiftBinding = binding.swiftUIBinding
+    #expect(swiftBinding.wrappedValue == "hello")
+  }
+
+  @Test func swiftUIBindingSetsValue() {
+    let box = TestBox("hello")
+    let binding = DataBinding<String>(
+      identity: .path("/text"),
+      get: { box.value },
+      set: { box.value = $0 }
+    )
+    let swiftBinding = binding.swiftUIBinding
+    swiftBinding.wrappedValue = "world"
+    #expect(binding.get() == "world")
+  }
+
+  @Test func swiftUIBindingGetsAndSetsValue() {
+    let box = TestBox(42.0)
+    let binding = DataBinding<Double>(
+      identity: .path("/value"),
+      get: { box.value },
+      set: { box.value = $0 }
+    )
+    let swiftBinding = binding.swiftUIBinding
+    #expect(swiftBinding.wrappedValue == 42.0)
+    swiftBinding.wrappedValue = 99.0
+    #expect(binding.get() == 99.0)
+  }
+}
+
+// MARK: - Theme Environment Tests
+
+struct ThemeEnvironmentTests {
+
+  @Test func themeKeyDefaultValueIsNil() {
+    #expect(A2UIThemeKey.defaultValue == nil)
+  }
+
+  @Test func themeEnvironmentCanBeSet() throws {
+    let theme = TestRenderTheme(color: "blue")
+    var env = EnvironmentValues()
+    env.a2uiTheme = theme
+    #expect(env.a2uiTheme != nil)
+    #expect((env.a2uiTheme as? TestRenderTheme)?.color == "blue")
+  }
+
+  @Test func themeEnvironmentDefaultsToNil() {
+    var env = EnvironmentValues()
+    #expect(env.a2uiTheme == nil)
+  }
+}
+
+// MARK: - CatalogView Tests
+
+struct CatalogViewTests {
+
+  @Test func catalogViewInitializesWithNode() {
+    let node = Node(id: "test", type: "text", properties: ["label": "Hello"])
+    let view = TestCatalogView(node: node)
+    #expect(view.node.id == "test")
+    #expect(view.node.type == "text")
+  }
+}
+
+// MARK: - Helpers
+
+/// A mutable box for testing Sendable closures.
+final class TestBox<T>: @unchecked Sendable {
+  var value: T
+  init(_ value: T) { self.value = value }
+}
+
+/// A catalog with a simple text schema for rendering tests.
+struct TestSurfaceCatalogForRendering: ComponentCatalog {
+  let textSchema: Schema
+
+  init() throws {
+    textSchema = try Schema(
+      instance: """
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "component": { "type": "string" },
+            "text": { "$ref": "https://a2ui.org/schemas/v0_9_1/common.json#/$defs/DynamicString" }
+          },
+          "required": ["id", "component"]
+        }
+        """,
+      remoteSchemas: A2UICommonSchema.allSchemas
+    )
+  }
+
+  func schema(forType type: String) -> Schema? {
+    switch type {
+    case "text": return textSchema
+    default: return nil
+    }
+  }
+
+  func makeTheme(jsonObject: JSONValue) -> (any SurfaceTheme)? {
+    nil
+  }
+
+  func localFunction(for name: String) -> (any LocalFunction)? {
+    nil
   }
 }
