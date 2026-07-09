@@ -292,9 +292,14 @@ public enum A2UICommonSchema {
   /// This document contains all 14 A2UI common type schema definitions
   /// under the `$defs` key, with cross-references using `$ref` URIs
   /// relative to `baseURI`.
-  public static let document: JSONValue = try! JSONValue.parse(
-    rawDocument
-  )
+  public static let document: JSONValue = {
+    guard let parsed = try? JSONValue.parse(rawDocument) else {
+      // This should never happen — the raw document is a compile-time
+      // constant. But we use a safe fallback to avoid runtime traps.
+      return .object([:])
+    }
+    return parsed
+  }()
 
   /// A dictionary mapping the base URI to the common types document.
   ///

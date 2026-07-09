@@ -46,7 +46,7 @@ let package = Package(
       dependencies: [
         .product(name: "JSONSchema", package: "swift-json-schema"),
         .product(
-          name: "JSONSchemaBuilder",
+          name: "OrderedJSON",
           package: "swift-json-schema"
         ),
       ],
@@ -70,13 +70,6 @@ let package = Package(
       name: "A2UISwiftUI",
       dependencies: ["A2UICore"],
       path: "swift/swiftui/Sources/A2UISwiftUI"
-    ),
-
-    // ── Sample Client ──
-    .executableTarget(
-      name: "A2UISampleClient",
-      dependencies: ["A2UISwiftUI", "A2UICore"],
-      path: "swift/sample/Sources/A2UISampleClient"
     ),
 
     // ── Tests ──

@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import SwiftUI
+import A2UICore
+import OrderedJSON
 
-/// The main entry point for the A2UI sample iOS client app.
-///
-/// This demo app demonstrates the full A2UI pipeline: creating
-/// surfaces via simulated JSONL messages, rendering components with
-/// two-way data binding, and handling user actions.
-@main
-struct A2UISampleApp: App {
-  var body: some Scene {
-    WindowGroup {
-      ContentView()
-    }
+/// A sample theme for the A2UI demo app.
+public struct SampleTheme: SurfaceTheme {
+  public let primaryColor: String
+  public let iconUrl: String?
+  public let agentDisplayName: String
+
+  public init(
+    primaryColor: String = "#1A73E8",
+    iconUrl: String? = nil,
+    agentDisplayName: String = "A2UI Agent"
+  ) {
+    self.primaryColor = primaryColor
+    self.iconUrl = iconUrl
+    self.agentDisplayName = agentDisplayName
   }
 }
