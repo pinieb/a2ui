@@ -62,5 +62,5 @@ Key rules:
 Before completing any task, agents **MUST** execute:
 
 1. **Format code**: `swift-format format -i -r Package.swift swift/`
-2. **Run tests**: `cd swift/core && ./run_tests.sh`
-3. **Compile check**: `swift build` passes
+2. **Run tests**: `(cd swift/core && ./run_tests.sh)`
+3. **Compile check**: `swift build`

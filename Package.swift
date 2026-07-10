@@ -37,7 +37,7 @@ let package = Package(
     .package(
       url: "https://github.com/ajevans99/swift-json-schema",
       from: "0.13.1"
-    ),
+    )
   ],
   targets: [
     // ── Core ──
@@ -46,7 +46,7 @@ let package = Package(
       dependencies: [
         .product(name: "JSONSchema", package: "swift-json-schema"),
         .product(
-          name: "JSONSchemaBuilder",
+          name: "OrderedJSON",
           package: "swift-json-schema"
         ),
       ],
@@ -54,7 +54,14 @@ let package = Package(
     ),
     .target(
       name: "A2UICore",
-      dependencies: ["A2UIJSON"],
+      dependencies: [
+        "A2UIJSON",
+        .product(name: "JSONSchema", package: "swift-json-schema"),
+        .product(
+          name: "OrderedJSON",
+          package: "swift-json-schema"
+        ),
+      ],
       path: "swift/core/Sources/A2UICore"
     ),
 
