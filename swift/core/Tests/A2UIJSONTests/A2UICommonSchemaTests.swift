@@ -73,11 +73,14 @@ struct A2UICommonSchemaTests {
   @Test func testMakeContextResolvesA2UIRefs() throws {
     let context = A2UISchemaRegistry.makeContext()
     // Verify the context can resolve A2UI refs by validating a DataBinding
+    let rawSchema: JSONValue = try .parse(
+      """
+      { "$ref": "\(A2UICommonSchema.uri(for: "DataBinding"))" }
+      """
+    )
     let schema = try Schema(
-      instance: """
-        { "$ref": "\(A2UICommonSchema.uri(for: "DataBinding"))" }
-        """,
-      remoteSchemas: A2UICommonSchema.allSchemas
+      rawSchema: rawSchema,
+      context: context
     )
     let value: JSONValue = ["path": "/test"]
     let result = schema.validate(value)
