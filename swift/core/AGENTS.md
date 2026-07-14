@@ -48,6 +48,7 @@ to [CODING_STANDARDS.md](CODING_STANDARDS.md) and the
 guides before writing any code.
 
 Key rules:
+
 - **One type per file** — each struct/enum/protocol gets its own file.
 - **100-char line limit** — no line may exceed 100 characters.
 - **2-space indentation** — matching `.swift-format`.

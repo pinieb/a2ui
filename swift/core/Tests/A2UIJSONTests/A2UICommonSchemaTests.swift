@@ -270,7 +270,7 @@ struct A2UICommonSchemaTests {
       "event": [
         "name": "click",
         "context": ["userID": "123"],
-      ],
+      ]
     ]
     let result = schema.validate(value)
     #expect(result.isValid)
@@ -287,7 +287,7 @@ struct A2UICommonSchemaTests {
       "functionCall": [
         "call": "submit",
         "returnType": "void",
-      ],
+      ]
     ]
     let result = schema.validate(value)
     #expect(result.isValid)
@@ -303,7 +303,7 @@ struct A2UICommonSchemaTests {
     let value: JSONValue = [
       "event": [
         "context": JSONValue.object([:])
-      ],
+      ]
     ]
     let result = schema.validate(value)
     #expect(!result.isValid)
@@ -433,7 +433,7 @@ struct A2UICommonSchemaTests {
       "event": [
         "name": "click",
         "context": ["userID": "123"],
-      ],
+      ]
     ]
     let result = schema.validate(event)
     #expect(result.isValid)
