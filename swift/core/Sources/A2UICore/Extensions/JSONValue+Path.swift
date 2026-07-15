@@ -40,7 +40,7 @@ extension JSONValue {
     switch self {
     case .integer(let value): return value
     case .number(let value):
-      if value == value.rounded() {
+      if value >= Double(Int.min) && value <= Double(Int.max) && value == value.rounded() {
         return Int(value)
       }
       return nil
