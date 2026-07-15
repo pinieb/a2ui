@@ -37,7 +37,7 @@ let package = Package(
     .package(
       url: "https://github.com/ajevans99/swift-json-schema",
       from: "0.13.1"
-    ),
+    )
   ],
   targets: [
     // ── Core ──
@@ -46,7 +46,7 @@ let package = Package(
       dependencies: [
         .product(name: "JSONSchema", package: "swift-json-schema"),
         .product(
-          name: "JSONSchemaBuilder",
+          name: "OrderedJSON",
           package: "swift-json-schema"
         ),
       ],

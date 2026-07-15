@@ -48,6 +48,7 @@ to [CODING_STANDARDS.md](CODING_STANDARDS.md) and the
 guides before writing any code.
 
 Key rules:
+
 - **One type per file** — each struct/enum/protocol gets its own file.
 - **100-char line limit** — no line may exceed 100 characters.
 - **2-space indentation** — matching `.swift-format`.
@@ -62,5 +63,5 @@ Key rules:
 Before completing any task, agents **MUST** execute:
 
 1. **Format code**: `swift-format format -i -r Package.swift swift/`
-2. **Run tests**: `cd swift/core && ./run_tests.sh`
-3. **Compile check**: `swift build` passes
+2. **Run tests**: `(cd swift/core && ./run_tests.sh)`
+3. **Compile check**: `swift build`
