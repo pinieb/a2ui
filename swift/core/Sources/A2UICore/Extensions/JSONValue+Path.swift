@@ -112,10 +112,11 @@ extension JSONValue {
     set {
       let components = Self.parsePath(path)
       guard !components.isEmpty else {
-        if let newValue, case .object = newValue {
+        if let newValue {
           self = newValue
         }
         return
+      }
       }
       if let updated = Self.update(
         node: self,
