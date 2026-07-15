@@ -17,19 +17,17 @@ public enum ClientServerError: Equatable, Codable, Sendable {
   case validationFailed(ValidationFailedError)
   case generic(GenericError)
 
+  private struct Discriminator: Decodable {
+    let code: String
+  }
+
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    if let validation = try? container.decode(ValidationFailedError.self) {
-      self = .validationFailed(validation)
-    } else if let generic = try? container.decode(GenericError.self) {
-      self = .generic(generic)
+    let discriminator = try container.decode(Discriminator.self)
+    if discriminator.code == ValidationFailedError.errorCode {
+      self = .validationFailed(try container.decode(ValidationFailedError.self))
     } else {
-      throw DecodingError.dataCorrupted(
-        DecodingError.Context(
-          codingPath: decoder.codingPath,
-          debugDescription: "Unknown ClientServerError structure"
-        )
-      )
+      self = .generic(try container.decode(GenericError.self))
     }
   }
 
