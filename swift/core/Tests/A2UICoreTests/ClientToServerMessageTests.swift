@@ -134,10 +134,11 @@ struct ClientToServerMessageTests {
   // MARK: - Encoding
 
   @Test func encodeActionWithEvent() throws {
-    let action = ResolvedAction(identity: .event(
-      name: "click",
-      context: ["userId": "123"]
-    ), trigger: {})
+    let action = ResolvedAction(
+      identity: .event(
+        name: "click",
+        context: ["userId": "123"]
+      ), trigger: {})
     let message = ClientToServerMessage.action(action)
     let data = try JSONEncoder().encode(message)
     let decoded = try JSONDecoder().decode(
@@ -147,10 +148,11 @@ struct ClientToServerMessageTests {
   }
 
   @Test func encodeActionWithFunctionCall() throws {
-    let action = ResolvedAction(identity: .function(
-      call: "submit",
-      args: ["formId": "contact"]
-    ), trigger: {})
+    let action = ResolvedAction(
+      identity: .function(
+        call: "submit",
+        args: ["formId": "contact"]
+      ), trigger: {})
     let message = ClientToServerMessage.action(action)
     let data = try JSONEncoder().encode(message)
     let decoded = try JSONDecoder().decode(

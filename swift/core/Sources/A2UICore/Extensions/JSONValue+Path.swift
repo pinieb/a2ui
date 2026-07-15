@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import OrderedJSON
 import OrderedCollections
+import OrderedJSON
 
 extension JSONValue {
   /// Returns the underlying string value if this is a `.string` case.
@@ -77,7 +77,8 @@ extension JSONValue {
   /// if this is an `.object` case.
   public var dictionaryValue: [String: JSONValue]? {
     switch self {
-    case .object(let value): return Dictionary(uniqueKeysWithValues: value.map { ($0.key, $0.value) })
+    case .object(let value):
+      return Dictionary(uniqueKeysWithValues: value.map { ($0.key, $0.value) })
     default: return nil
     }
   }
@@ -117,7 +118,6 @@ extension JSONValue {
         }
         return
       }
-      }
       if let updated = Self.update(
         node: self,
         components: components[...],
@@ -136,10 +136,28 @@ extension JSONValue {
   static func parsePath(_ path: String) -> [String] {
     guard !path.isEmpty else { return [] }
     let adjustedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-    return adjustedPath.split(separator: "/", omittingEmptySubsequences: false).map {
-      String($0)
-        .replacingOccurrences(of: "~1", with: "/")
-        .replacingOccurrences(of: "~0", with: "~")
+    return adjustedPath.split(separator: "/", omittingEmptySubsequences: false).map { component in
+      var result = ""
+      var iterator = component.makeIterator()
+      while let char = iterator.next() {
+        if char == "~" {
+          if let nextChar = iterator.next() {
+            if nextChar == "1" {
+              result.append("/")
+            } else if nextChar == "0" {
+              result.append("~")
+            } else {
+              result.append("~")
+              result.append(nextChar)
+            }
+          } else {
+            result.append("~")
+          }
+        } else {
+          result.append(char)
+        }
+      }
+      return result
     }
   }
 
@@ -204,18 +222,7 @@ extension JSONValue {
         }
         return .array(array)
       } else {
-        if newValue == nil && isLastComponent { return node }
-        var dict: OrderedDictionary<String, JSONValue> = [:]
-        if isLastComponent {
-          if let newValue { dict[key] = newValue }
-        } else {
-          dict[key] = update(
-            node: nil,
-            components: remainingComponents,
-            newValue: newValue
-          )
-        }
-        return .object(dict)
+        return node
       }
 
     default:
