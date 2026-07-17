@@ -131,6 +131,19 @@ struct JSONValuePathTests {
     #expect(value["user/name"]?.stringValue == "Alice")
   }
 
+  @Test func subscriptSetRootToArray() {
+    var value: JSONValue = ["name": "Alice"]
+    value[""] = [1, 2, 3]
+    #expect(value.arrayValue?.count == 3)
+    #expect(value["0"]?.intValue == 1)
+  }
+
+  @Test func subscriptSetRootToPrimitive() {
+    var value: JSONValue = ["name": "Alice"]
+    value[""] = JSONValue.string("hello")
+    #expect(value == .string("hello"))
+  }
+
   @Test func subscriptSetAppendsToArray() {
     var value: JSONValue = [
       "items": [1, 2, 3],
@@ -160,9 +173,11 @@ struct JSONValuePathTests {
       "items": [1, 2, 3],
     ]
     value["items/1"] = nil
-    #expect(value["items"]?.arrayValue?.count == 2)
+    // Setting an array index to nil preserves length (sparse array)
+    #expect(value["items"]?.arrayValue?.count == 3)
     #expect(value["items/0"]?.intValue == 1)
-    #expect(value["items/1"]?.intValue == 3)
+    #expect(value["items/1"] == .null)
+    #expect(value["items/2"]?.intValue == 3)
   }
 
   @Test func subscriptSetAutoVivifiesObjectFromArray() {
@@ -172,6 +187,13 @@ struct JSONValuePathTests {
     value["items/0/age"] = 30
     #expect(value["items/0/age"]?.intValue == 30)
     #expect(value["items/0/name"]?.stringValue == "Alice")
+  }
+
+  @Test func subscriptSetAutoVivifiesArrayFromPrimitive() {
+    var value: JSONValue = "primitive"
+    value["0/name"] = "Alice"
+    #expect(value.arrayValue?.count == 1)
+    #expect(value["0/name"]?.stringValue == "Alice")
   }
 
   // MARK: - absolutePath

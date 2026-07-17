@@ -16,13 +16,16 @@ import Foundation
 
 /// A container message enclosing one of the supported incoming
 /// server-to-client commands.
-public enum EnvelopeMessage: Codable, Sendable, Equatable {
+///
+/// Matches `specification/v0_9_1/json/server_to_client.json`.
+public enum ServerToClientMessage: Codable, Sendable, Equatable {
   case createSurface(CreateSurfaceMessage)
   case updateComponents(UpdateComponentsMessage)
   case updateDataModel(UpdateDataModelMessage)
   case deleteSurface(DeleteSurfaceMessage)
 
   private enum CodingKeys: String, CodingKey {
+    case version
     case createSurface
     case updateComponents
     case updateDataModel
@@ -31,6 +34,14 @@ public enum EnvelopeMessage: Codable, Sendable, Equatable {
 
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
+    let version = try container.decode(String.self, forKey: .version)
+    guard version == "v0.9" || version == "v0.9.1" else {
+      throw DecodingError.dataCorruptedError(
+        forKey: .version,
+        in: container,
+        debugDescription: "Unsupported version: \(version)"
+      )
+    }
 
     if let createSurface = try container.decodeIfPresent(
       CreateSurfaceMessage.self,
@@ -56,7 +67,7 @@ public enum EnvelopeMessage: Codable, Sendable, Equatable {
       let context = DecodingError.Context(
         codingPath: container.codingPath,
         debugDescription: """
-          EnvelopeMessage must contain one of: 'createSurface', \
+          ServerToClientMessage must contain one of: 'createSurface', \
           'updateComponents', 'updateDataModel', or 'deleteSurface'
           """
       )
@@ -66,6 +77,7 @@ public enum EnvelopeMessage: Codable, Sendable, Equatable {
 
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode("v0.9.1", forKey: .version)
     switch self {
     case .createSurface(let message):
       try container.encode(message, forKey: .createSurface)
@@ -78,3 +90,4 @@ public enum EnvelopeMessage: Codable, Sendable, Equatable {
     }
   }
 }
+

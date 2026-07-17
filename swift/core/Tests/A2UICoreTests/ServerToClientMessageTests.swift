@@ -17,20 +17,23 @@ import Foundation
 import OrderedJSON
 import Testing
 
-struct EnvelopeMessageTests {
+struct ServerToClientMessageTests {
 
   // MARK: - Decoding
 
   @Test func decodeCreateSurface() throws {
-    let json = """
+    let json = try #require("""
       {
+        "version": "v0.9.1",
         "createSurface": {
           "surfaceId": "s1",
           "catalogId": "default"
         }
       }
-      """.data(using: .utf8)!
-    let msg = try JSONDecoder().decode(EnvelopeMessage.self, from: json)
+      """.data(using: .utf8))
+    let msg = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: json
+    )
     if case .createSurface(let create) = msg {
       #expect(create.surfaceID == "s1")
       #expect(create.catalogID == "default")
@@ -41,24 +44,28 @@ struct EnvelopeMessageTests {
   }
 
   @Test func decodeCreateSurfaceWithSendDataModel() throws {
-    let json = """
+    let json = try #require("""
       {
+        "version": "v0.9.1",
         "createSurface": {
           "surfaceId": "s1",
           "catalogId": "default",
           "sendDataModel": true
         }
       }
-      """.data(using: .utf8)!
-    let msg = try JSONDecoder().decode(EnvelopeMessage.self, from: json)
+      """.data(using: .utf8))
+    let msg = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: json
+    )
     if case .createSurface(let create) = msg {
       #expect(create.shouldSendDataModel == true)
     }
   }
 
   @Test func decodeUpdateComponents() throws {
-    let json = """
+    let json = try #require("""
       {
+        "version": "v0.9.1",
         "updateComponents": {
           "surfaceId": "s1",
           "components": [
@@ -66,8 +73,10 @@ struct EnvelopeMessageTests {
           ]
         }
       }
-      """.data(using: .utf8)!
-    let msg = try JSONDecoder().decode(EnvelopeMessage.self, from: json)
+      """.data(using: .utf8))
+    let msg = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: json
+    )
     if case .updateComponents(let update) = msg {
       #expect(update.surfaceID == "s1")
       #expect(update.components.count == 1)
@@ -78,16 +87,19 @@ struct EnvelopeMessageTests {
   }
 
   @Test func decodeUpdateDataModel() throws {
-    let json = """
+    let json = try #require("""
       {
+        "version": "v0.9.1",
         "updateDataModel": {
           "surfaceId": "s1",
           "path": "/user/name",
           "value": "Alice"
         }
       }
-      """.data(using: .utf8)!
-    let msg = try JSONDecoder().decode(EnvelopeMessage.self, from: json)
+      """.data(using: .utf8))
+    let msg = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: json
+    )
     if case .updateDataModel(let update) = msg {
       #expect(update.surfaceID == "s1")
       #expect(update.path == "/user/name")
@@ -98,29 +110,35 @@ struct EnvelopeMessageTests {
   }
 
   @Test func decodeUpdateDataModelDefaultsToRootPath() throws {
-    let json = """
+    let json = try #require("""
       {
+        "version": "v0.9.1",
         "updateDataModel": {
           "surfaceId": "s1",
           "value": {"name": "Alice"}
         }
       }
-      """.data(using: .utf8)!
-    let msg = try JSONDecoder().decode(EnvelopeMessage.self, from: json)
+      """.data(using: .utf8))
+    let msg = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: json
+    )
     if case .updateDataModel(let update) = msg {
       #expect(update.path == "/")
     }
   }
 
   @Test func decodeDeleteSurface() throws {
-    let json = """
+    let json = try #require("""
       {
+        "version": "v0.9.1",
         "deleteSurface": {
           "surfaceId": "s1"
         }
       }
-      """.data(using: .utf8)!
-    let msg = try JSONDecoder().decode(EnvelopeMessage.self, from: json)
+      """.data(using: .utf8))
+    let msg = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: json
+    )
     if case .deleteSurface(let delete) = msg {
       #expect(delete.surfaceID == "s1")
     } else {
@@ -128,17 +146,55 @@ struct EnvelopeMessageTests {
     }
   }
 
-  @Test func decodeRejectsEmptyEnvelope() throws {
-    let json = "{}".data(using: .utf8)!
+  @Test func decodeRejectsEmptyMessage() throws {
+    let json = try #require("{}".data(using: .utf8))
     #expect(throws: DecodingError.self) {
-      try JSONDecoder().decode(EnvelopeMessage.self, from: json)
+      try JSONDecoder().decode(ServerToClientMessage.self, from: json)
+    }
+  }
+
+  @Test func decodeRejectsMissingVersion() throws {
+    let json = try #require(
+      """
+      {"createSurface": {"surfaceId": "s1", "catalogId": "default"}}
+      """.data(using: .utf8)
+    )
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode(ServerToClientMessage.self, from: json)
+    }
+  }
+
+  @Test func decodeRejectsUnsupportedVersion() throws {
+    let json = try #require("""
+      {
+        "version": "v2.0",
+        "createSurface": {"surfaceId": "s1", "catalogId": "default"}
+      }
+      """.data(using: .utf8))
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode(ServerToClientMessage.self, from: json)
+    }
+  }
+
+  @Test func decodeAcceptsVersion09() throws {
+    let json = try #require("""
+      {
+        "version": "v0.9",
+        "createSurface": {"surfaceId": "s1", "catalogId": "default"}
+      }
+      """.data(using: .utf8))
+    let msg = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: json
+    )
+    if case .createSurface(let create) = msg {
+      #expect(create.surfaceID == "s1")
     }
   }
 
   // MARK: - Encoding Round-Trip
 
   @Test func encodeDecodeRoundTripCreateSurface() throws {
-    let original = EnvelopeMessage.createSurface(
+    let original = ServerToClientMessage.createSurface(
       CreateSurfaceMessage(
         surfaceID: "s1",
         catalogID: "default",
@@ -147,12 +203,14 @@ struct EnvelopeMessageTests {
       )
     )
     let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(EnvelopeMessage.self, from: data)
+    let decoded = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: data
+    )
     #expect(decoded == original)
   }
 
   @Test func encodeDecodeRoundTripUpdateComponents() throws {
-    let original = EnvelopeMessage.updateComponents(
+    let original = ServerToClientMessage.updateComponents(
       UpdateComponentsMessage(
         surfaceID: "s1",
         components: [
@@ -162,16 +220,29 @@ struct EnvelopeMessageTests {
       )
     )
     let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(EnvelopeMessage.self, from: data)
+    let decoded = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: data
+    )
     #expect(decoded == original)
   }
 
   @Test func encodeDecodeRoundTripDeleteSurface() throws {
-    let original = EnvelopeMessage.deleteSurface(
+    let original = ServerToClientMessage.deleteSurface(
       DeleteSurfaceMessage(surfaceID: "s1")
     )
     let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(EnvelopeMessage.self, from: data)
+    let decoded = try JSONDecoder().decode(
+      ServerToClientMessage.self, from: data
+    )
     #expect(decoded == original)
+  }
+
+  @Test func encodeAlwaysIncludesVersionV091() throws {
+    let original = ServerToClientMessage.deleteSurface(
+      DeleteSurfaceMessage(surfaceID: "s1")
+    )
+    let data = try JSONEncoder().encode(original)
+    let json = try #require(String(data: data, encoding: .utf8))
+    #expect(json.contains("\"version\":\"v0.9.1\""))
   }
 }
