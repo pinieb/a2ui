@@ -183,6 +183,41 @@ struct JSONValuePathTests {
     #expect(value["items/3"]?.intValue == 4)
   }
 
+  @Test func subscriptSetPadsArrayForOutOfBoundsIndex() {
+    var value: JSONValue = [
+      "items": [1, 2, 3]
+    ]
+    value["items/5"] = 99
+    #expect(value["items"]?.arrayValue?.count == 6)
+    #expect(value["items/0"]?.intValue == 1)
+    #expect(value["items/1"]?.intValue == 2)
+    #expect(value["items/2"]?.intValue == 3)
+    #expect(value["items/3"] == .null)
+    #expect(value["items/4"] == .null)
+    #expect(value["items/5"]?.intValue == 99)
+  }
+
+  @Test func subscriptSetAutoVivifiesNestedPathAtOutOfBoundsIndex() {
+    var value: JSONValue = [
+      "items": [1, 2, 3]
+    ]
+    value["items/5/name"] = "Alice"
+    #expect(value["items"]?.arrayValue?.count == 6)
+    #expect(value["items/3"] == .null)
+    #expect(value["items/4"] == .null)
+    #expect(value["items/5/name"]?.stringValue == "Alice")
+  }
+
+  @Test func subscriptSetNilAtOutOfBoundsIndexIsNoOp() {
+    var value: JSONValue = [
+      "items": [1, 2, 3]
+    ]
+    value["items/5"] = nil
+    // Setting nil beyond bounds should not pad the array
+    #expect(value["items"]?.arrayValue?.count == 3)
+    #expect(value["items/0"]?.intValue == 1)
+  }
+
   @Test func subscriptSetReplacesArrayElement() {
     var value: JSONValue = [
       "items": [1, 2, 3]
@@ -235,6 +270,16 @@ struct JSONValuePathTests {
     value["0/name"] = "Alice"
     #expect(value.arrayValue?.count == 1)
     #expect(value["0/name"]?.stringValue == "Alice")
+  }
+
+  @Test func subscriptSetAutoVivifiesArrayFromPrimitiveWithNonZeroIndex() {
+    var value: JSONValue = "primitive"
+    value["3/name"] = "Alice"
+    #expect(value.arrayValue?.count == 4)
+    #expect(value["0"] == .null)
+    #expect(value["1"] == .null)
+    #expect(value["2"] == .null)
+    #expect(value["3/name"]?.stringValue == "Alice")
   }
 
   // MARK: - absolutePath
