@@ -49,19 +49,25 @@ public enum A2UICommonSchema {
       "$defs": {
         "ComponentId": {
           "type": "string",
-          "description": "The unique identifier for a component, used for both definitions and references within the same surface."
+          "description": "The unique identifier for a component, used for \
+    both definitions and references within the same surface."
         },
         "AccessibilityAttributes": {
           "type": "object",
-          "description": "Attributes to enhance accessibility when using assistive technologies like screen readers.",
+          "description": "Attributes to enhance accessibility when using \
+    assistive technologies like screen readers.",
           "properties": {
             "label": {
               "$ref": "#/$defs/DynamicString",
-              "description": "A short string, typically 1 to 3 words, used by assistive technologies to convey the purpose or intent of an element."
+              "description": "A short string, typically 1 to 3 words, \
+    used by assistive technologies to convey the purpose or intent of an \
+    element."
             },
             "description": {
               "$ref": "#/$defs/DynamicString",
-              "description": "Additional information provided by assistive technologies about an element such as instructions, format requirements, or result of an action."
+              "description": "Additional information provided by assistive \
+    technologies about an element such as instructions, format \
+    requirements, or result of an action."
             }
           }
         },
@@ -82,12 +88,14 @@ public enum A2UICommonSchema {
             },
             {
               "type": "object",
-              "description": "A template for generating a dynamic list of children from a data model list.",
+              "description": "A template for generating a dynamic list of \
+    children from a data model list.",
               "properties": {
                 "componentId": { "$ref": "#/$defs/ComponentId" },
                 "path": {
                   "type": "string",
-                  "description": "The path to the list of component property objects in the data model."
+                  "description": "The path to the list of component property \
+    objects in the data model."
                 }
               },
               "required": ["componentId", "path"],
@@ -107,7 +115,8 @@ public enum A2UICommonSchema {
           "additionalProperties": false
         },
         "DynamicValue": {
-          "description": "A value that can be a literal, a path, or a function call returning any type.",
+          "description": "A value that can be a literal, a path, or a \
+    function call returning any type.",
           "oneOf": [
             { "type": "string" },
             { "type": "number" },
@@ -135,7 +144,9 @@ public enum A2UICommonSchema {
           ]
         },
         "DynamicNumber": {
-          "description": "Represents a value that can be either a literal number, a path to a number in the data model, or a function call returning a number.",
+          "description": "Represents a value that can be either a literal \
+    number, a path to a number in the data model, or a function call \
+    returning a number.",
           "oneOf": [
             { "type": "number" },
             { "$ref": "#/$defs/DataBinding" },
@@ -152,7 +163,8 @@ public enum A2UICommonSchema {
           ]
         },
         "DynamicBoolean": {
-          "description": "A boolean value that can be a literal, a path, or a function call returning a boolean.",
+          "description": "A boolean value that can be a literal, a path, or \
+    a function call returning a boolean.",
           "oneOf": [
             { "type": "boolean" },
             { "$ref": "#/$defs/DataBinding" },
@@ -169,7 +181,9 @@ public enum A2UICommonSchema {
           ]
         },
         "DynamicStringList": {
-          "description": "Represents a value that can be either a literal array of strings, a path to a string array in the data model, or a function call returning a string array.",
+          "description": "Represents a value that can be either a literal \
+    array of strings, a path to a string array in the data model, or a \
+    function call returning a string array.",
           "oneOf": [
             {
               "type": "array",
@@ -243,7 +257,8 @@ public enum A2UICommonSchema {
           }
         },
         "Action": {
-          "description": "Defines an interaction handler that can either trigger a server-side event or execute a local client-side function.",
+          "description": "Defines an interaction handler that can either \
+    trigger a server-side event or execute a local client-side function.",
           "oneOf": [
             {
               "type": "object",
@@ -259,7 +274,8 @@ public enum A2UICommonSchema {
                     },
                     "context": {
                       "type": "object",
-                      "description": "A JSON object containing the key-value pairs for the action context.",
+                      "description": "A JSON object containing the \
+    key-value pairs for the action context.",
                       "additionalProperties": {
                         "$ref": "#/$defs/DynamicValue"
                       }
@@ -293,12 +309,12 @@ public enum A2UICommonSchema {
   /// under the `$defs` key, with cross-references using `$ref` URIs
   /// relative to `baseURI`.
   public static let document: JSONValue = {
-    guard let parsed = try? JSONValue.parse(rawDocument) else {
-      // This should never happen — the raw document is a compile-time
-      // constant. But we use a safe fallback to avoid runtime traps.
+    do {
+      return try JSONValue.parse(rawDocument)
+    } catch {
+      assertionFailure("Failed to parse A2UICommonSchema rawDocument: \(error)")
       return .object([:])
     }
-    return parsed
   }()
 
   /// A dictionary mapping the base URI to the common types document.
