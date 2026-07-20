@@ -73,11 +73,14 @@ struct A2UICommonSchemaTests {
   @Test func testMakeContextResolvesA2UIRefs() throws {
     let context = A2UISchemaRegistry.makeContext()
     // Verify the context can resolve A2UI refs by validating a DataBinding
+    let rawSchema: JSONValue = try .parse(
+      """
+      { "$ref": "\(A2UICommonSchema.uri(for: "DataBinding"))" }
+      """
+    )
     let schema = try Schema(
-      instance: """
-        { "$ref": "\(A2UICommonSchema.uri(for: "DataBinding"))" }
-        """,
-      remoteSchemas: A2UICommonSchema.allSchemas
+      rawSchema: rawSchema,
+      context: context
     )
     let value: JSONValue = ["path": "/test"]
     let result = schema.validate(value)
@@ -267,7 +270,7 @@ struct A2UICommonSchemaTests {
       "event": [
         "name": "click",
         "context": ["userID": "123"],
-      ],
+      ]
     ]
     let result = schema.validate(value)
     #expect(result.isValid)
@@ -284,7 +287,7 @@ struct A2UICommonSchemaTests {
       "functionCall": [
         "call": "submit",
         "returnType": "void",
-      ],
+      ]
     ]
     let result = schema.validate(value)
     #expect(result.isValid)
@@ -300,7 +303,7 @@ struct A2UICommonSchemaTests {
     let value: JSONValue = [
       "event": [
         "context": JSONValue.object([:])
-      ],
+      ]
     ]
     let result = schema.validate(value)
     #expect(!result.isValid)
@@ -430,7 +433,7 @@ struct A2UICommonSchemaTests {
       "event": [
         "name": "click",
         "context": ["userID": "123"],
-      ],
+      ]
     ]
     let result = schema.validate(event)
     #expect(result.isValid)
