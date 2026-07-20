@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import OrderedJSON
 import OrderedCollections
+import OrderedJSON
 
 extension JSONValue {
   /// Returns the underlying string value if this is a `.string` case.
@@ -40,7 +40,7 @@ extension JSONValue {
     switch self {
     case .integer(let value): return value
     case .number(let value):
-      if value == value.rounded() {
+      if value >= Double(Int.min) && value <= Double(Int.max) && value == value.rounded() {
         return Int(value)
       }
       return nil
@@ -77,7 +77,8 @@ extension JSONValue {
   /// if this is an `.object` case.
   public var dictionaryValue: [String: JSONValue]? {
     switch self {
-    case .object(let value): return Dictionary(uniqueKeysWithValues: value.map { ($0.key, $0.value) })
+    case .object(let value):
+      return Dictionary(uniqueKeysWithValues: value.map { ($0.key, $0.value) })
     default: return nil
     }
   }
@@ -112,7 +113,7 @@ extension JSONValue {
     set {
       let components = Self.parsePath(path)
       guard !components.isEmpty else {
-        if let newValue, case .object = newValue {
+        if let newValue {
           self = newValue
         }
         return
@@ -133,7 +134,31 @@ extension JSONValue {
 
   /// Parses a JSON Pointer-style path into components.
   static func parsePath(_ path: String) -> [String] {
-    path.split(separator: "/").map { String($0) }
+    guard !path.isEmpty else { return [] }
+    let adjustedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+    return adjustedPath.split(separator: "/", omittingEmptySubsequences: false).map { component in
+      var result = ""
+      var iterator = component.makeIterator()
+      while let char = iterator.next() {
+        if char == "~" {
+          if let nextChar = iterator.next() {
+            if nextChar == "1" {
+              result.append("/")
+            } else if nextChar == "0" {
+              result.append("~")
+            } else {
+              result.append("~")
+              result.append(nextChar)
+            }
+          } else {
+            result.append("~")
+          }
+        } else {
+          result.append(char)
+        }
+      }
+      return result
+    }
   }
 
   /// Recursively updates a node at the given path components.
@@ -175,7 +200,10 @@ extension JSONValue {
                 array[index] = newValue
               }
             } else if index < array.count {
-              array.remove(at: index)
+              // Setting an array index to nil preserves the array
+              // length (sparse array), matching the blueprint's
+              // JSON Pointer Implementation Rules.
+              array[index] = .null
             }
           } else {
             let nextNode = index < array.count ? array[index] : nil
@@ -191,29 +219,21 @@ extension JSONValue {
                 array[index] = updated
               }
             } else if index < array.count {
-              array.remove(at: index)
+              // Sparse array: preserve length, set to null.
+              array[index] = .null
             }
           }
         }
         return .array(array)
       } else {
-        if newValue == nil && isLastComponent { return node }
-        var dict: OrderedDictionary<String, JSONValue> = [:]
-        if isLastComponent {
-          if let newValue { dict[key] = newValue }
-        } else {
-          dict[key] = update(
-            node: nil,
-            components: remainingComponents,
-            newValue: newValue
-          )
-        }
-        return .object(dict)
+        return node
       }
 
     default:
       if newValue == nil { return node }
-      if let index = Int(key), index == 0 {
+      if let index = Int(key), index >= 0 {
+        // Auto-vivify an array for any numeric key, matching
+        // web_core's isNumeric() auto-vivification rule.
         var array: [JSONValue] = []
         if isLastComponent {
           if let newValue { array.append(newValue) }
