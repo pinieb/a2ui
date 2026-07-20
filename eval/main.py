@@ -24,7 +24,7 @@ from a2ui_eval.strategies import STRATEGIES
 os.environ["INSPECT_MAX_CONNECTIONS"] = "50"
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run A2UI evaluations")
     parser.add_argument(
         "--sanity",
@@ -81,8 +81,8 @@ def main():
         type=str,
         action="append",
         help=(
-            "Evaluation strategies to run (choices: direct, subagent_tool, express)."
-            " Can be comma-separated or specified multiple times."
+            "Evaluation strategies to run (choices: direct, subagent_tool, express,"
+            " elemental). Can be comma-separated or specified multiple times."
         ),
     )
     args = parser.parse_args()
@@ -108,7 +108,7 @@ def main():
                 f"Unknown evaluation strategy: {strat}. Valid choices:"
                 f" {', '.join(STRATEGIES.keys())}"
             )
-        if strat == "express":
+        if strat in ["express", "elemental"]:
             tasks.append(
                 a2ui_v1_0_eval(strategy=strat, grading_model=args.grading_model)
             )
