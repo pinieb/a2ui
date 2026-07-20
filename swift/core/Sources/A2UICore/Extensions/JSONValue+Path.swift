@@ -191,37 +191,43 @@ extension JSONValue {
 
     case .some(.array(var array)):
       if let index = Int(key), index >= 0 {
-        if index <= array.count {
-          if isLastComponent {
-            if let newValue {
-              if index == array.count {
-                array.append(newValue)
-              } else {
-                array[index] = newValue
-              }
-            } else if index < array.count {
-              // Setting an array index to nil preserves the array
-              // length (sparse array), matching the blueprint's
-              // JSON Pointer Implementation Rules.
-              array[index] = .null
-            }
+        if index > array.count {
+          if newValue != nil || !isLastComponent {
+            array.append(contentsOf: Array(repeating: .null, count: index - array.count))
           } else {
-            let nextNode = index < array.count ? array[index] : nil
-            let updated = update(
-              node: nextNode,
-              components: remainingComponents,
-              newValue: newValue
-            )
-            if let updated {
-              if index == array.count {
-                array.append(updated)
-              } else {
-                array[index] = updated
-              }
-            } else if index < array.count {
-              // Sparse array: preserve length, set to null.
-              array[index] = .null
+            return .array(array)
+          }
+        }
+
+        if isLastComponent {
+          if let newValue {
+            if index == array.count {
+              array.append(newValue)
+            } else {
+              array[index] = newValue
             }
+          } else if index < array.count {
+            // Setting an array index to nil preserves the array
+            // length (sparse array), matching the blueprint's
+            // JSON Pointer Implementation Rules.
+            array[index] = .null
+          }
+        } else {
+          let nextNode = index < array.count ? array[index] : nil
+          let updated = update(
+            node: nextNode,
+            components: remainingComponents,
+            newValue: newValue
+          )
+          if let updated {
+            if index == array.count {
+              array.append(updated)
+            } else {
+              array[index] = updated
+            }
+          } else if index < array.count {
+            // Sparse array: preserve length, set to null.
+            array[index] = .null
           }
         }
         return .array(array)
@@ -234,7 +240,7 @@ extension JSONValue {
       if let index = Int(key), index >= 0 {
         // Auto-vivify an array for any numeric key, matching
         // web_core's isNumeric() auto-vivification rule.
-        var array: [JSONValue] = []
+        var array: [JSONValue] = Array(repeating: .null, count: index)
         if isLastComponent {
           if let newValue { array.append(newValue) }
         } else if let updated = update(
