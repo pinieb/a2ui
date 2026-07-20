@@ -21,58 +21,59 @@ struct ClientToServerMessageTests {
 
   // MARK: - Decoding
 
-  @Test func decodeValidActionWithEvent() throws {
-    let json = """
+  @Test func decodeValidAction() throws {
+    let json = try #require("""
       {
         "version": "v0.9.1",
         "action": {
-          "event": "click",
-          "context": {"userId": "123"}
+          "name": "submit",
+          "surfaceId": "main",
+          "sourceComponentId": "btn_submit",
+          "timestamp": "2023-10-27T10:00:00Z",
+          "context": {"foo": "bar"}
         }
       }
-      """.data(using: .utf8)!
+      """.data(using: .utf8))
     let message = try JSONDecoder().decode(
       ClientToServerMessage.self, from: json
     )
     if case .action(let action) = message {
-      if case .event(let name, let context) = action.identity {
-        #expect(name == "click")
-        #expect(context?["userId"]?.stringValue == "123")
-      } else {
-        Issue.record("Expected .event identity")
-      }
+      #expect(action.name == "submit")
+      #expect(action.surfaceID == "main")
+      #expect(action.sourceComponentID == "btn_submit")
+      #expect(action.timestamp == "2023-10-27T10:00:00Z")
+      #expect(action.context["foo"]?.stringValue == "bar")
     } else {
       Issue.record("Expected .action message")
     }
   }
 
-  @Test func decodeValidActionWithFunctionCall() throws {
-    let json = """
+  @Test func decodeValidActionWithEmptyContext() throws {
+    let json = try #require("""
       {
         "version": "v0.9.1",
         "action": {
-          "call": "submit",
-          "args": {"formId": "contact"}
+          "name": "click",
+          "surfaceId": "main",
+          "sourceComponentId": "btn",
+          "timestamp": "2024-01-15T12:30:00Z",
+          "context": {}
         }
       }
-      """.data(using: .utf8)!
+      """.data(using: .utf8))
     let message = try JSONDecoder().decode(
       ClientToServerMessage.self, from: json
     )
     if case .action(let action) = message {
-      if case .function(let call, let args) = action.identity {
-        #expect(call == "submit")
-        #expect(args?["formId"]?.stringValue == "contact")
-      } else {
-        Issue.record("Expected .function identity")
-      }
+      #expect(action.name == "click")
+      #expect(action.context.isEmpty)
     } else {
       Issue.record("Expected .action message")
     }
   }
 
   @Test func decodeValidError() throws {
-    let json = """
+    let json = try #require("""
       {
         "version": "v0.9.1",
         "error": {
@@ -82,7 +83,7 @@ struct ClientToServerMessageTests {
           "message": "Missing required property"
         }
       }
-      """.data(using: .utf8)!
+      """.data(using: .utf8))
     let message = try JSONDecoder().decode(
       ClientToServerMessage.self, from: json
     )
@@ -100,59 +101,66 @@ struct ClientToServerMessageTests {
   }
 
   @Test func decodeRejectsUnsupportedVersion() throws {
-    let json = """
-      {"version": "v2.0", "action": {"event": "click"}}
-      """.data(using: .utf8)!
+    let json = try #require(
+      """
+      {"version": "v2.0", "action": {"name": "x", "surfaceId": "s", \
+      "sourceComponentId": "c", "timestamp": "t", "context": {}}}
+      """.data(using: .utf8)
+    )
     #expect(throws: DecodingError.self) {
       try JSONDecoder().decode(ClientToServerMessage.self, from: json)
     }
   }
 
   @Test func decodeRejectsMissingActionAndError() throws {
-    let json = """
-      {"version": "v0.9.1"}
-      """.data(using: .utf8)!
+    let json = try #require(
+      "{\"version\": \"v0.9.1\"}".data(using: .utf8)
+    )
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode(ClientToServerMessage.self, from: json)
+    }
+  }
+
+  @Test func decodeRejectsActionMissingRequiredField() throws {
+    let json = try #require("""
+      {
+        "version": "v0.9.1",
+        "action": {
+          "name": "submit",
+          "surfaceId": "main"
+        }
+      }
+      """.data(using: .utf8))
     #expect(throws: DecodingError.self) {
       try JSONDecoder().decode(ClientToServerMessage.self, from: json)
     }
   }
 
   @Test func decodeAcceptsVersion09() throws {
-    let json = """
-      {"version": "v0.9", "action": {"event": "click"}}
-      """.data(using: .utf8)!
+    let json = try #require(
+      """
+      {"version": "v0.9", "action": {"name": "click", "surfaceId": "s", \
+      "sourceComponentId": "c", "timestamp": "t", "context": {}}}
+      """.data(using: .utf8)
+    )
     let message = try JSONDecoder().decode(
       ClientToServerMessage.self, from: json
     )
     if case .action(let action) = message {
-      if case .event(let name, _) = action.identity {
-        #expect(name == "click")
-      }
+      #expect(action.name == "click")
     }
   }
 
   // MARK: - Encoding
 
-  @Test func encodeActionWithEvent() throws {
-    let action = ResolvedAction(
-      identity: .event(
-        name: "click",
-        context: ["userId": "123"]
-      ), trigger: {})
-    let message = ClientToServerMessage.action(action)
-    let data = try JSONEncoder().encode(message)
-    let decoded = try JSONDecoder().decode(
-      ClientToServerMessage.self, from: data
+  @Test func encodeActionRoundTrip() throws {
+    let action = ClientAction(
+      name: "submit",
+      surfaceID: "main",
+      sourceComponentID: "btn_submit",
+      timestamp: "2023-10-27T10:00:00Z",
+      context: ["foo": .string("bar")]
     )
-    #expect(decoded == message)
-  }
-
-  @Test func encodeActionWithFunctionCall() throws {
-    let action = ResolvedAction(
-      identity: .function(
-        call: "submit",
-        args: ["formId": "contact"]
-      ), trigger: {})
     let message = ClientToServerMessage.action(action)
     let data = try JSONEncoder().encode(message)
     let decoded = try JSONDecoder().decode(
@@ -178,9 +186,12 @@ struct ClientToServerMessageTests {
   }
 
   @Test func encodeAlwaysUsesV091Version() throws {
-    let action = ResolvedAction(
-      identity: .event(name: "click", context: nil),
-      trigger: {}
+    let action = ClientAction(
+      name: "click",
+      surfaceID: "main",
+      sourceComponentID: "btn",
+      timestamp: "2024-01-01T00:00:00Z",
+      context: [:]
     )
     let message = ClientToServerMessage.action(action)
     let data = try JSONEncoder().encode(message)
@@ -188,28 +199,63 @@ struct ClientToServerMessageTests {
     #expect(json.contains("\"version\":\"v0.9.1\""))
   }
 
-  // MARK: - ResolvedAction Equality
-
-  @Test func resolvedActionsEqualByIdentity() {
-    let a = ResolvedAction(
-      identity: .event(name: "click", context: nil),
-      trigger: {}
+  @Test func encodeProducesFlatActionPayload() throws {
+    let action = ClientAction(
+      name: "submit",
+      surfaceID: "main",
+      sourceComponentID: "btn_submit",
+      timestamp: "2023-10-27T10:00:00Z",
+      context: ["foo": .string("bar")]
     )
-    let b = ResolvedAction(
-      identity: .event(name: "click", context: nil),
-      trigger: {}
+    let message = ClientToServerMessage.action(action)
+    let data = try JSONEncoder().encode(message)
+    let json = try #require(String(data: data, encoding: .utf8))
+    // Verify flat keys are present
+    #expect(json.contains("\"name\":\"submit\""))
+    #expect(json.contains("\"surfaceId\":\"main\""))
+    #expect(json.contains("\"sourceComponentId\":\"btn_submit\""))
+    #expect(json.contains("\"timestamp\":\"2023-10-27T10:00:00Z\""))
+    #expect(json.contains("\"context\""))
+    // Verify nested event/call keys are absent
+    #expect(!json.contains("\"event\""))
+    #expect(!json.contains("\"call\""))
+    #expect(!json.contains("\"args\""))
+  }
+
+  // MARK: - ClientAction Equality
+
+  @Test func clientActionsEqualByAllFields() {
+    let a = ClientAction(
+      name: "click",
+      surfaceID: "main",
+      sourceComponentID: "btn",
+      timestamp: "2024-01-01T00:00:00Z",
+      context: ["key": .string("val")]
+    )
+    let b = ClientAction(
+      name: "click",
+      surfaceID: "main",
+      sourceComponentID: "btn",
+      timestamp: "2024-01-01T00:00:00Z",
+      context: ["key": .string("val")]
     )
     #expect(a == b)
   }
 
-  @Test func resolvedActionsNotEqualByDifferentIdentity() {
-    let a = ResolvedAction(
-      identity: .event(name: "click", context: nil),
-      trigger: {}
+  @Test func clientActionsNotEqualByDifferentName() {
+    let a = ClientAction(
+      name: "click",
+      surfaceID: "main",
+      sourceComponentID: "btn",
+      timestamp: "2024-01-01T00:00:00Z",
+      context: [:]
     )
-    let b = ResolvedAction(
-      identity: .event(name: "submit", context: nil),
-      trigger: {}
+    let b = ClientAction(
+      name: "submit",
+      surfaceID: "main",
+      sourceComponentID: "btn",
+      timestamp: "2024-01-01T00:00:00Z",
+      context: [:]
     )
     #expect(a != b)
   }

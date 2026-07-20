@@ -200,7 +200,10 @@ extension JSONValue {
                 array[index] = newValue
               }
             } else if index < array.count {
-              array.remove(at: index)
+              // Setting an array index to nil preserves the array
+              // length (sparse array), matching the blueprint's
+              // JSON Pointer Implementation Rules.
+              array[index] = .null
             }
           } else {
             let nextNode = index < array.count ? array[index] : nil
@@ -216,7 +219,8 @@ extension JSONValue {
                 array[index] = updated
               }
             } else if index < array.count {
-              array.remove(at: index)
+              // Sparse array: preserve length, set to null.
+              array[index] = .null
             }
           }
         }
@@ -227,7 +231,9 @@ extension JSONValue {
 
     default:
       if newValue == nil { return node }
-      if let index = Int(key), index == 0 {
+      if let index = Int(key), index >= 0 {
+        // Auto-vivify an array for any numeric key, matching
+        // web_core's isNumeric() auto-vivification rule.
         var array: [JSONValue] = []
         if isLastComponent {
           if let newValue { array.append(newValue) }

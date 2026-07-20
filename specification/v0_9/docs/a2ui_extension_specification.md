@@ -1,8 +1,8 @@
-# A2UI (Agent-to-Agent UI) Extension spec v0.9.1
+# A2UI (Agent-to-Agent UI) Extension spec v0.9
 
 ## Overview
 
-This document is intended for developers implementing the A2UI A2A extension. The extension adds A2UI v0.9.1 support to A2A, a format for agents to send streaming, interactive user interfaces to clients.
+This document is intended for developers implementing the A2UI A2A extension. The extension adds A2UI v0.9 support to A2A, a format for agents to send streaming, interactive user interfaces to clients.
 
 Note that A2UI extension activation is optional as clients and agents can negotiate A2UI support using A2A `message.metadata["a2uiClientCapabilities"]` which is attached to every A2A message from the client and contains the supported protocol version and catalogs. Agents advertising A2UI support in their AgentCard is encouraged as clients may rely on it to determine if they should send `message.metadata["a2uiClientCapabilities"]`, however it is not explicitly required.
 
@@ -10,7 +10,7 @@ Note that A2UI extension activation is optional as clients and agents can negoti
 
 The URI of this extension is https://a2ui.org/a2a-extension/a2ui/v0.9
 
-This URI is the canonical way to communicate protocol versioning between clients and agents. The extension URI explicitly encodes the version (e.g., `v0.9.1`). A client requesting this specific URI indicates it supports the v0.9.1 schema format.
+This URI is the canonical way to communicate protocol versioning between clients and agents. The extension URI explicitly encodes the version (e.g., `v0.9`). A client requesting this specific URI indicates it supports the v0.9 schema format.
 
 ## Agent Card
 
@@ -26,12 +26,12 @@ Example AgentCard payload:
     "extensions": [
       {
         "uri": "https://a2ui.org/a2a-extension/a2ui/v0.9",
-        "description": "Ability to render A2UI v0.9.1",
+        "description": "Ability to render A2UI v0.9",
         "required": false,
         "params": {
           "supportedCatalogIds": [
-            "https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json",
-            "https://my-company.com/a2ui/v0.9.1/my_custom_catalog.json"
+            "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+            "https://my-company.com/a2ui/v0.9/my_custom_catalog.json"
           ],
           "acceptsInlineCatalogs": true
         }
@@ -41,7 +41,7 @@ Example AgentCard payload:
 }
 ```
 
-The `params` object corresponds to the `v0.9.1` object in the `server_capabilities.json` schema:
+The `params` object corresponds to the `v0.9` object in the `server_capabilities.json` schema:
 
 - `params.supportedCatalogIds` (optional): An array of strings, where each string is an ID identifying a Catalog Definition Schema that the agent can generate. This is not necessarily a resolvable URI.
 - `params.acceptsInlineCatalogs` (optional): A boolean indicating if the agent can accept an `inlineCatalogs` array in the client's `a2uiClientCapabilities`. If omitted, this defaults to `false`.
@@ -128,8 +128,8 @@ The client sends `sendMessageRequest.message["a2uiClientCapabilities"]` = [Clien
       "a2uiClientCapabilities": {
         "v0.9": {
           "supportedCatalogIds": [
-            "https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json",
-            "https://my-company.com/a2ui/v0.9.1/my_custom_catalog.json"
+            "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+            "https://my-company.com/a2ui/v0.9/my_custom_catalog.json"
           ]
         }
       }
@@ -154,7 +154,7 @@ When a surface enables Data Model Sync, the client sends `sendMessageRequest.mes
     ],
     "metadata": {
       "a2uiClientDataModel": {
-        "version": "v0.9.1",
+        "version": "v0.9",
         "surfaces": {
           "main_surface_id": {
             "user_id": "12345",
@@ -195,14 +195,14 @@ Example DataPart:
 {
   "data": [
     {
-      "version": "v0.9.1",
+      "version": "v0.9",
       "createSurface": {
         "surfaceId": "example_surface",
-        "catalogId": "https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json"
+        "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
       }
     },
     {
-      "version": "v0.9.1",
+      "version": "v0.9",
       "updateComponents": {
         "surfaceId": "example_surface",
         "components": [
@@ -233,7 +233,7 @@ Example `action` DataPart:
 {
   "data": [
     {
-      "version": "v0.9.1",
+      "version": "v0.9",
       "action": {
         "name": "submit_form",
         "surfaceId": "contact_form_1",

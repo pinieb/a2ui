@@ -12,24 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import OrderedJSON
-
 /// Top-level envelope for client-to-server messages (actions or errors).
+///
+/// Matches `specification/v0_9_1/json/client_to_server.json`.
 public enum ClientToServerMessage: Equatable, Codable, Sendable {
-  case action(ResolvedAction)
+  case action(ClientAction)
   case error(ClientServerError)
 
   private enum CodingKeys: String, CodingKey {
     case version
     case action
     case error
-  }
-
-  private enum ActionCodingKeys: String, CodingKey {
-    case event
-    case context
-    case call
-    case args
   }
 
   public init(from decoder: Decoder) throws {
@@ -43,39 +36,16 @@ public enum ClientToServerMessage: Equatable, Codable, Sendable {
       )
     }
 
-    if container.contains(.action) {
-      let actionContainer = try container.nestedContainer(
-        keyedBy: ActionCodingKeys.self,
-        forKey: .action
-      )
-      let identity: ResolvedAction.Identity
-      if let eventName = try actionContainer.decodeIfPresent(String.self, forKey: .event) {
-        let context = try actionContainer.decodeIfPresent(
-          [String: JSONValue].self,
-          forKey: .context
-        )
-        identity = .event(name: eventName, context: context)
-      } else if let callName = try actionContainer.decodeIfPresent(String.self, forKey: .call) {
-        let args = try actionContainer.decodeIfPresent(
-          [String: JSONValue].self,
-          forKey: .args
-        )
-        identity = .function(call: callName, args: args)
-      } else {
-        throw DecodingError.dataCorrupted(
-          DecodingError.Context(
-            codingPath: decoder.codingPath,
-            debugDescription: "Action must contain either 'event' or 'call'"
-          )
-        )
-      }
-      let actionValue = ResolvedAction(identity: identity, trigger: {})
-      self = .action(actionValue)
-    } else if let errorValue = try container.decodeIfPresent(
+    if let action = try container.decodeIfPresent(
+      ClientAction.self,
+      forKey: .action
+    ) {
+      self = .action(action)
+    } else if let error = try container.decodeIfPresent(
       ClientServerError.self,
       forKey: .error
     ) {
-      self = .error(errorValue)
+      self = .error(error)
     } else {
       throw DecodingError.dataCorrupted(
         DecodingError.Context(
@@ -92,24 +62,10 @@ public enum ClientToServerMessage: Equatable, Codable, Sendable {
 
     switch self {
     case .action(let action):
-      var actionContainer = container.nestedContainer(
-        keyedBy: ActionCodingKeys.self,
-        forKey: .action
-      )
-      switch action.identity {
-      case .event(let name, let context):
-        try actionContainer.encode(name, forKey: .event)
-        if let context {
-          try actionContainer.encode(context, forKey: .context)
-        }
-      case .function(let call, let args):
-        try actionContainer.encode(call, forKey: .call)
-        if let args {
-          try actionContainer.encode(args, forKey: .args)
-        }
-      }
+      try container.encode(action, forKey: .action)
     case .error(let error):
       try container.encode(error, forKey: .error)
     }
   }
 }
+
