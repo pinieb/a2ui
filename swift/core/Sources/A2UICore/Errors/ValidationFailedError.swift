@@ -14,7 +14,9 @@
 
 /// Represents a structured validation failure.
 public struct ValidationFailedError: Error, Equatable, Codable, Sendable {
-  public let code: String = "VALIDATION_FAILED"
+  public static let errorCode = "VALIDATION_FAILED"
+
+  public let code: String = errorCode
   public let surfaceID: String
   public let path: String
   public let message: String
@@ -35,7 +37,7 @@ public struct ValidationFailedError: Error, Equatable, Codable, Sendable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let decodedCode = try container.decode(String.self, forKey: .code)
-    guard decodedCode == "VALIDATION_FAILED" else {
+    guard decodedCode == Self.errorCode else {
       throw DecodingError.dataCorruptedError(
         forKey: .code,
         in: container,
