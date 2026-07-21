@@ -110,7 +110,7 @@ struct SurfaceViewModelTests {
   @Test func updateComponentsStoresValidComponent() throws {
     let (vm, handler) = try makeViewModel()
     vm.updateComponents([
-      ["id": "root", "component": "button", "label": "Click Me"],
+      ["id": "root", "component": "button", "label": "Click Me"]
     ])
     let components = vm.getComponents()
     #expect(components["root"] != nil)
@@ -120,7 +120,7 @@ struct SurfaceViewModelTests {
   @Test func updateComponentsRejectsMissingComponentKey() throws {
     let (vm, handler) = try makeViewModel()
     vm.updateComponents([
-      ["id": "root"],
+      ["id": "root"]
     ])
     #expect(handler.capturedErrors.count == 1)
     if case .validationFailed(let err) = handler.capturedErrors[0] {
@@ -131,7 +131,7 @@ struct SurfaceViewModelTests {
   @Test func updateComponentsRejectsMissingIdKey() throws {
     let (vm, handler) = try makeViewModel()
     vm.updateComponents([
-      ["component": "button"],
+      ["component": "button"]
     ])
     #expect(handler.capturedErrors.count == 1)
     if case .validationFailed(let err) = handler.capturedErrors[0] {
@@ -142,7 +142,7 @@ struct SurfaceViewModelTests {
   @Test func updateComponentsRejectsUnknownType() throws {
     let (vm, handler) = try makeViewModel()
     vm.updateComponents([
-      ["id": "root", "component": "unknown_type"],
+      ["id": "root", "component": "unknown_type"]
     ])
     #expect(handler.capturedErrors.count == 1)
   }
@@ -177,7 +177,7 @@ struct SurfaceViewModelTests {
   @Test func dynamicStringResolvesLiteralValue() throws {
     let (vm, _) = try makeViewModel()
     vm.updateComponents([
-      ["id": "root", "component": "button", "label": "Hello"],
+      ["id": "root", "component": "button", "label": "Hello"]
     ])
     let components = vm.getComponents()
     let rootJSON = try #require(components["root"])
@@ -188,7 +188,7 @@ struct SurfaceViewModelTests {
     let (vm, _) = try makeViewModel()
     vm.updateDataModel(path: "/user/name", value: "Alice")
     vm.updateComponents([
-      ["id": "root", "component": "button", "label": ["path": "/user/name"]],
+      ["id": "root", "component": "button", "label": ["path": "/user/name"]]
     ])
     let data = vm.getDataModel()
     #expect(data["user/name"]?.stringValue == "Alice")
@@ -199,7 +199,7 @@ struct SurfaceViewModelTests {
   @Test func dynamicBooleanResolvesLiteralTrue() throws {
     let (vm, _) = try makeViewModel()
     vm.updateComponents([
-      ["id": "root", "component": "button", "enabled": true],
+      ["id": "root", "component": "button", "enabled": true]
     ])
     let components = vm.getComponents()
     let rootJSON = try #require(components["root"])
@@ -218,9 +218,9 @@ struct SurfaceViewModelTests {
           "event": [
             "name": "click",
             "context": ["userId": "123"],
-          ],
+          ]
         ],
-      ],
+      ]
     ])
     // The component should be stored successfully
     let components = vm.getComponents()
@@ -244,9 +244,9 @@ struct SurfaceViewModelTests {
           "functionCall": [
             "call": "submit",
             "args": ["formId": "contact"],
-          ],
+          ]
         ],
-      ],
+      ]
     ])
     let components = vm.getComponents()
     let rootJSON = try #require(components["root"])
