@@ -110,6 +110,8 @@ public struct MessageErrorMapper: Sendable {
         return String(intVal)
       } else {
         return key.stringValue
+          .replacingOccurrences(of: "~", with: "~0")
+          .replacingOccurrences(of: "/", with: "~1")
       }
     }.joined(separator: "/")
     return "/" + pointer

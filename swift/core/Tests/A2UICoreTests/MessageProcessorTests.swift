@@ -123,7 +123,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    #expect(processor.getSurface(id: "s1") != nil)
+    #expect(processor.group.surface(id: "s1") != nil)
   }
 
   @Test func processCreateSurfaceWithUnknownCatalogThrows() throws {
@@ -158,7 +158,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    #expect(processor.getSurface(id: "s1") != nil)
+    #expect(processor.group.surface(id: "s1") != nil)
   }
 
   // MARK: - Update Components
@@ -191,7 +191,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    let vm = processor.getSurface(id: "s1")
+    let vm = processor.group.surface(id: "s1")
     let components = vm?.getComponents()
     #expect(components?["root"] != nil)
   }
@@ -238,7 +238,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    let vm = processor.getSurface(id: "s1")
+    let vm = processor.group.surface(id: "s1")
     let data = vm?.getDataModel()
     #expect(data?["user/name"]?.stringValue == "Alice")
   }
@@ -266,7 +266,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    #expect(processor.getSurface(id: "s1") == nil)
+    #expect(processor.group.surface(id: "s1") == nil)
   }
 
   @Test func processDeleteSurfaceForMissingSurfaceThrows() throws {
@@ -297,7 +297,7 @@ struct MessageProcessorTests {
 
   // MARK: - Surface Management
 
-  @Test func getSurfacesReturnsAllActiveSurfaces() throws {
+  @Test func groupAllSurfacesReturnsAllActiveSurfaces() throws {
     let (processor, _) = try makeProcessor()
     try processor.process(
       line: """
@@ -319,15 +319,15 @@ struct MessageProcessorTests {
           }
         }
         """)
-    let surfaces = processor.getSurfaces()
+    let surfaces = processor.group.allSurfaces()
     #expect(surfaces.count == 2)
     #expect(surfaces["s1"] != nil)
     #expect(surfaces["s2"] != nil)
   }
 
-  @Test func getSurfaceReturnsNilForUnknownID() throws {
+  @Test func groupSurfaceReturnsNilForUnknownID() throws {
     let (processor, _) = try makeProcessor()
-    #expect(processor.getSurface(id: "unknown") == nil)
+    #expect(processor.group.surface(id: "unknown") == nil)
   }
 
   // MARK: - sendDataModel

@@ -129,29 +129,4 @@ public final class MessageProcessor: @unchecked Sendable,
     }
   }
 
-  // MARK: - Deprecated Forwarding Methods
-
-  /// The dictionary of active surfaces, published to the UI.
-  ///
-  /// - Deprecated: Access via `processor.group.surfacesMap`.
-  @available(*, deprecated, message: "Use group.surfacesMap")
-  public var surfaces: [String: SurfaceViewModel] {
-    group.surfacesMap
-  }
-
-  /// Thread-safely retrieves all active surfaces.
-  ///
-  /// - Deprecated: Use `group.allSurfaces()`.
-  @available(*, deprecated, message: "Use group.allSurfaces()")
-  public func getSurfaces() -> [String: SurfaceViewModel] {
-    group.allSurfaces()
-  }
-
-  /// Thread-safely retrieves a specific surface by ID.
-  ///
-  /// - Deprecated: Use `group.surface(id:)`.
-  @available(*, deprecated, message: "Use group.surface(id:)")
-  public func getSurface(id: String) -> SurfaceViewModel? {
-    group.surface(id: id)
-  }
 }
