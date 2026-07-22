@@ -28,7 +28,7 @@ Communication occurs via a stream of JSON objects. The renderer parses each obje
 - `updateDataModel`: Provides new data to be inserted into or to replace a surface's data model.
 - `deleteSurface`: Explicitly removes a surface and its contents from the UI.
 
-End of agent turn is signaled by [transport layer](https://github.com/a2ui-project/a2ui/tree/main/docs/public/concepts/transports.md).
+End of agent turn is signaled by [transport layer](../../../docs/public/concepts/transports.md).
 
 ## Changes from previous versions
 
@@ -263,7 +263,7 @@ This message is used to send or update the data that populates the UI components
 
 - `surfaceId` (string, required): The unique identifier for the UI surface this data model update applies to. This must be globally unique for the renderer's lifetime.
 - `path` (string, optional): A JSON Pointer to the location in the data model to update. Defaults to `/`.
-- `value` (any, optional): The new value for the specified path. If omitted, the key at `path` is removed.
+- `value` (any, required): The new value for the specified path. To delete the key/value at `path`, set `value` explicitly to `null`.
 
 **Example:**
 
@@ -862,7 +862,7 @@ The `updateDataModel` message replaces the value at the specified `path` with th
 
 - `surfaceId` (string, required): The ID of the surface to update.
 - `path` (string, optional): A JSON Pointer to the location in the data model to update. Defaults to `/`.
-- `value` (any, optional): The new value for the specified path. If omitted, the key at `path` is removed.
+- `value` (any, required): The new value for the specified path. To delete the key/value at `path`, set `value` explicitly to `null`.
 
 **Examples:**
 
@@ -886,7 +886,8 @@ _Remove a field:_
   "version": "v1.0",
   "updateDataModel": {
     "surfaceId": "surface_123",
-    "path": "/user/tempData"
+    "path": "/user/tempData",
+    "value": null
   }
 }
 ```
