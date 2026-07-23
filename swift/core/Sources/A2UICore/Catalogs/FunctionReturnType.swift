@@ -12,18 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import OrderedJSON
-
-/// Abstract definition of local validation or transformation functions.
+/// The set of return types a local function can produce.
 ///
-/// Implementations are registered in a `ComponentCatalog` and invoked
-/// by the `SurfaceViewModel` when evaluating `FunctionCall` dynamic
-/// values.
-public protocol LocalFunction: Sendable {
-  /// Evaluates the function with the given arguments.
-  ///
-  /// - Parameter arguments: A dictionary of named arguments.
-  /// - Returns: The result of the function evaluation.
-  /// - Throws: `LocalFunctionError` if evaluation fails.
-  func evaluate(arguments: [String: JSONValue]) throws -> JSONValue
+/// Mirrors `A2uiReturnType` in the core blueprint and `web_core`.
+public enum FunctionReturnType: String, Sendable {
+  case string
+  case number
+  case boolean
+  case array
+  case object
+  case any
+  case void
 }

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /// Errors that occur during local function evaluation.
-public enum LocalFunctionError: Error, Sendable {
+public enum FunctionError: Error, Sendable {
   case functionNotFound(String)
   case missingArgument(String)
   case invalidArgumentType(expected: String, actual: String)
