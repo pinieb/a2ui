@@ -154,20 +154,34 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
   /// Resolves a component by ID, using the component ID as both
   /// definition and instance ID.
   func resolveNode(id: String, basePath: String? = nil) -> Node? {
-    resolveNode(definitionID: id, instanceID: id, basePath: basePath)
+    resolveNode(definitionID: id, instanceID: id, basePath: basePath, visited: [])
   }
 
   /// Resolves a component definition into a specific instance Node.
+  ///
+  /// - Parameter visited: The set of instance IDs already being
+  ///   resolved in the current traversal. Prevents infinite recursion
+  ///   on cyclic component references while allowing legitimate
+  ///   data-driven recursion (e.g. a "card" component that renders
+  ///   nested "card" children from array data).
   func resolveNode(
     definitionID: String,
     instanceID: String,
-    basePath: String?
+    basePath: String?,
+    visited: [String]
   ) -> Node? {
+    guard !visited.contains(instanceID) else {
+      // Cycle detected: this instance is already being resolved
+      // higher up the call stack.
+      return nil
+    }
+
     guard let component = componentsModel.get(definitionID) else {
       return nil
     }
 
     let type = component.type
+    let visited = visited + [instanceID]
 
     // Get the schema for this component type to classify properties
     let schema = catalog.components[type]?.schema
@@ -185,7 +199,8 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
         type: propType,
         basePath: basePath,
         componentID: instanceID,
-        propertyKey: key
+        propertyKey: key,
+        visited: visited
       ) {
         resolvedProperties[key] = resolvedVal
       }
@@ -199,7 +214,8 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
     type: PropertyType,
     basePath: String?,
     componentID: String,
-    propertyKey: String
+    propertyKey: String,
+    visited: [String]
   ) -> (any Resolved)? {
     switch type {
     case .dynamicBoolean:
@@ -217,7 +233,8 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
         value,
         basePath: basePath,
         componentID: componentID,
-        propertyKey: propertyKey
+        propertyKey: propertyKey,
+        visited: visited
       )
     case .standard:
       return value
@@ -486,14 +503,20 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
     _ value: JSONValue,
     basePath: String?,
     componentID: String,
-    propertyKey: String
+    propertyKey: String,
+    visited: [String]
   ) -> [Node]? {
     switch value {
     case .array(let arr):
       var resolvedNodes: [Node] = []
       for item in arr {
         guard let childID = item.stringValue else { continue }
-        if let childNode = resolveNode(id: childID, basePath: basePath) {
+        if let childNode = resolveNode(
+          definitionID: childID,
+          instanceID: childID,
+          basePath: basePath,
+          visited: visited
+        ) {
           resolvedNodes.append(childNode)
         }
       }
@@ -526,7 +549,8 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
         if let childNode = resolveNode(
           definitionID: templateID,
           instanceID: itemID,
-          basePath: itemBasePath
+          basePath: itemBasePath,
+          visited: visited
         ) {
           expandedNodes.append(childNode)
         }

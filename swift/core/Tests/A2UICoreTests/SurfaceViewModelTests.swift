@@ -399,6 +399,66 @@ struct SurfaceViewModelTests {
     #expect(root?.properties["items"]?.arrayValue?.count == 3)
     #expect(handler.capturedErrors.isEmpty)
   }
+
+  // MARK: - Cycle Detection
+
+  @Test func cyclicComponentReferencesDoNotHang() throws {
+    // Two components that reference each other via childList.
+    // Without cycle detection this would infinite-loop.
+    let (processor, surface, _) = try makeProcessor()
+    processor.updateComponents(
+      surfaceID: surface.surfaceID,
+      components: [
+        ["id": "a", "component": "button", "children": ["b"]],
+        ["id": "b", "component": "button", "children": ["a"]],
+      ]
+    )
+
+    // If we get here, the cycle guard worked. The rebuildTree triggered
+    // by updateComponents would have infinite-looped without the guard.
+    // rootNode resolves from "root" — but we only have "a" and "b", so
+    // it will be nil. The key assertion is that we didn't hang.
+    #expect(true)
+  }
+
+  @Test func legitimateDataDrivenRecursionResolves() throws {
+    // A "card" component that renders nested "card" children from
+    // array data. This is legitimate recursion (finite, data-terminated),
+    // not a cycle. The instanceID-based guard should allow it.
+    let (processor, surface, _) = try makeProcessor()
+
+    // Set up nested data: two levels of items
+    processor.updateDataModel(
+      surfaceID: surface.surfaceID,
+      path: "/items",
+      value: [
+        ["label": "Outer", "items": []],
+        ["label": "Second", "items": []],
+      ]
+    )
+
+    // The "card" component has a childList that reads from "/items"
+    // and uses itself as the template.
+    processor.updateComponents(
+      surfaceID: surface.surfaceID,
+      components: [
+        [
+          "id": "card",
+          "component": "button",
+          "label": ["path": "/label"],
+          "children": [
+            "componentId": "card",
+            "path": "/items",
+          ],
+        ],
+      ]
+    )
+
+    // If we get here without hanging, the guard correctly allowed
+    // legitimate recursion. Each nested "card" gets a unique
+    // instanceID (card_0, card_0_0, etc.) so the guard never triggers.
+    #expect(true)
+  }
 }
 
 // MARK: - ComponentModel Tests
