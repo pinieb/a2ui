@@ -22,8 +22,7 @@ struct ClientToServerMessageTests {
   // MARK: - Decoding
 
   @Test func decodeValidAction() throws {
-    let json = try #require(
-      """
+    let json = try #require("""
       {
         "version": "v0.9.1",
         "action": {
@@ -50,8 +49,7 @@ struct ClientToServerMessageTests {
   }
 
   @Test func decodeValidActionWithEmptyContext() throws {
-    let json = try #require(
-      """
+    let json = try #require("""
       {
         "version": "v0.9.1",
         "action": {
@@ -75,8 +73,7 @@ struct ClientToServerMessageTests {
   }
 
   @Test func decodeValidError() throws {
-    let json = try #require(
-      """
+    let json = try #require("""
       {
         "version": "v0.9.1",
         "error": {
@@ -125,8 +122,7 @@ struct ClientToServerMessageTests {
   }
 
   @Test func decodeRejectsActionMissingRequiredField() throws {
-    let json = try #require(
-      """
+    let json = try #require("""
       {
         "version": "v0.9.1",
         "action": {
