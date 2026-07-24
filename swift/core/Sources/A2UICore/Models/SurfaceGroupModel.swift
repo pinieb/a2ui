@@ -92,7 +92,7 @@ public final class SurfaceGroupModel: @unchecked Sendable, ObservableObject {
       var result: OrderedDictionary<String, JSONValue> = [:]
       for surfaceID in sendDataModelSurfaces {
         guard let vm = surfaces[surfaceID] else { continue }
-        result[surfaceID] = vm.getDataModel()
+        result[surfaceID] = vm.dataModel.snapshot()
       }
       guard !result.isEmpty else { return nil }
       return .object(result)

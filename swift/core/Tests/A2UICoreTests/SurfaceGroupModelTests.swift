@@ -23,7 +23,7 @@ struct SurfaceGroupModelTests {
 
   @Test func addSurfacePublishesToSurfacesMap() throws {
     let group = SurfaceGroupModel()
-    let catalog = try TestProcessorCatalog()
+    let catalog = try makeTestCatalog()
     let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
     group.addSurface(vm)
     #expect(group.surface(id: "s1") != nil)
@@ -32,7 +32,7 @@ struct SurfaceGroupModelTests {
 
   @Test func addDuplicateSurfaceIsIgnored() throws {
     let group = SurfaceGroupModel()
-    let catalog = try TestProcessorCatalog()
+    let catalog = try makeTestCatalog()
     let vm1 = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
     let vm2 = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
     group.addSurface(vm1)
@@ -42,7 +42,7 @@ struct SurfaceGroupModelTests {
 
   @Test func removeSurfaceRemovesFromGroup() throws {
     let group = SurfaceGroupModel()
-    let catalog = try TestProcessorCatalog()
+    let catalog = try makeTestCatalog()
     let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
     group.addSurface(vm)
     group.removeSurface(id: "s1")
@@ -52,7 +52,7 @@ struct SurfaceGroupModelTests {
 
   @Test func getClientDataModelReturnsNilWhenNoFlagSet() throws {
     let group = SurfaceGroupModel()
-    let catalog = try TestProcessorCatalog()
+    let catalog = try makeTestCatalog()
     let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
     group.addSurface(vm)
     #expect(group.getClientDataModel() == nil)
@@ -60,15 +60,15 @@ struct SurfaceGroupModelTests {
 
   @Test func getClientDataModelAggregatesFlaggedSurfaces() throws {
     let group = SurfaceGroupModel()
-    let catalog = try TestProcessorCatalog()
+    let catalog = try makeTestCatalog()
     let vm1 = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
     let vm2 = SurfaceViewModel(surfaceID: "s2", catalog: catalog)
-    vm2.updateDataModel(path: "/", value: .string("hello"))
+    vm2.dataModel.set("/foo", value: "hello")
     group.addSurface(vm1)
     group.addSurface(vm2)
     group.setSendDataModel(surfaceID: "s2", enabled: true)
     let dataModel = try #require(group.getClientDataModel())
     let s2Data = try #require(dataModel["s2"])
-    #expect(s2Data["/"]?.stringValue == "hello")
+    #expect(s2Data["foo"]?.stringValue == "hello")
   }
 }

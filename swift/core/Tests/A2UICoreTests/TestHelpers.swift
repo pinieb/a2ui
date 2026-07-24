@@ -19,41 +19,26 @@ import JSONSchema
 import OrderedJSON
 import Testing
 
-/// A catalog with a simple text component schema for testing.
-struct TestProcessorCatalog: ComponentCatalog {
-  let textSchema: Schema
-
-  init() throws {
-    textSchema = try Schema(
-      instance: """
-        {
-          "type": "object",
-          "properties": {
-            "id": { "type": "string" },
-            "component": { "type": "string" },
-            "text": { "$ref": "https://a2ui.org/schemas/v0_9_1/common.json#/$defs/DynamicString" }
-          },
-          "required": ["id", "component"]
-        }
-        """,
-      remoteSchemas: A2UICommonSchema.allSchemas
-    )
-  }
-
-  func schema(forType type: String) -> Schema? {
-    switch type {
-    case "text": return textSchema
-    default: return nil
-    }
-  }
-
-  func makeTheme(jsonObject: JSONValue) -> (any SurfaceTheme)? {
-    nil
-  }
-
-  func localFunction(for name: String) -> (any LocalFunction)? {
-    nil
-  }
+/// Helper to create a catalog with a simple text component schema for testing.
+func makeMessageProcessorTestCatalog() throws -> Catalog {
+  let textSchema = try Schema(
+    instance: """
+      {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "component": { "type": "string" },
+          "text": { "$ref": "https://a2ui.org/schemas/v0_9_1/common.json#/$defs/DynamicString" }
+        },
+        "required": ["id", "component"]
+      }
+      """,
+    remoteSchemas: A2UICommonSchema.allSchemas
+  )
+  return Catalog(
+    id: "default",
+    components: [ComponentAPI(name: "text", schema: textSchema)]
+  )
 }
 
 /// A test action handler that captures actions and errors.

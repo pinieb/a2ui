@@ -101,7 +101,7 @@ struct MessageProcessorTests {
 
   private func makeProcessor() throws -> (MessageProcessor, TestProcessorActionHandler) {
     let handler = TestProcessorActionHandler()
-    let catalog = try TestProcessorCatalog()
+    let catalog = try makeMessageProcessorTestCatalog()
     let processor = MessageProcessor(
       catalogs: ["default": catalog],
       actionHandler: handler
@@ -123,7 +123,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    #expect(processor.group.surface(id: "s1") != nil)
+    #expect(processor.getSurface("s1") != nil)
   }
 
   @Test func processCreateSurfaceWithUnknownCatalogThrows() throws {
@@ -158,7 +158,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    #expect(processor.group.surface(id: "s1") != nil)
+    #expect(processor.getSurface("s1") != nil)
   }
 
   // MARK: - Update Components
@@ -191,8 +191,8 @@ struct MessageProcessorTests {
           }
         }
         """)
-    let vm = processor.group.surface(id: "s1")
-    let components = vm?.getComponents()
+    let vm = processor.getSurface("s1")
+    let components = vm?.componentsModel.snapshot()
     #expect(components?["root"] != nil)
   }
 
@@ -238,8 +238,8 @@ struct MessageProcessorTests {
           }
         }
         """)
-    let vm = processor.group.surface(id: "s1")
-    let data = vm?.getDataModel()
+    let vm = processor.getSurface("s1")
+    let data = vm?.dataModel.snapshot()
     #expect(data?["user/name"]?.stringValue == "Alice")
   }
 
@@ -266,7 +266,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    #expect(processor.group.surface(id: "s1") == nil)
+    #expect(processor.getSurface("s1") == nil)
   }
 
   @Test func processDeleteSurfaceForMissingSurfaceThrows() throws {
@@ -319,7 +319,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    let surfaces = processor.group.allSurfaces()
+    let surfaces = processor.surfaceGroupModel.allSurfaces()
     #expect(surfaces.count == 2)
     #expect(surfaces["s1"] != nil)
     #expect(surfaces["s2"] != nil)
@@ -327,7 +327,7 @@ struct MessageProcessorTests {
 
   @Test func groupSurfaceReturnsNilForUnknownID() throws {
     let (processor, _) = try makeProcessor()
-    #expect(processor.group.surface(id: "unknown") == nil)
+    #expect(processor.getSurface("unknown") == nil)
   }
 
   // MARK: - sendDataModel
@@ -345,7 +345,7 @@ struct MessageProcessorTests {
           }
         }
         """)
-    let dataModel = processor.group.getClientDataModel()
+    let dataModel = processor.getClientDataModel()
     #expect(dataModel != nil)
   }
 
@@ -361,6 +361,6 @@ struct MessageProcessorTests {
           }
         }
         """)
-    #expect(processor.group.getClientDataModel() == nil)
+    #expect(processor.getClientDataModel() == nil)
   }
 }
