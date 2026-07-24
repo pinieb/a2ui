@@ -68,3 +68,4 @@ public enum ClientToServerMessage: Equatable, Codable, Sendable {
     }
   }
 }
+

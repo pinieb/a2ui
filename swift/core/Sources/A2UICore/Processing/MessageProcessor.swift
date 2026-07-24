@@ -14,251 +14,311 @@
 
 import Combine
 import Foundation
+import JSONSchema
 import OrderedCollections
 import OrderedJSON
 
-/// Thread-safe coordinator processing incoming JSONL streams and
-/// managing multiple `SurfaceViewModel` lifecycles and component
-/// catalogs.
+/// The central processor for A2UI server-to-client messages.
+///
+/// Mirrors `MessageProcessor` in the core blueprint and `web_core`.
+/// Accepts strongly-typed ``ServerToClientMessage`` values or raw JSON lines,
+/// validates component declarations against catalog schemas, and mutates
+/// the corresponding ``SurfaceViewModel`` state via ``SurfaceGroupModel``.
 public final class MessageProcessor: @unchecked Sendable, ObservableObject {
-  private let lock = NSRecursiveLock()
-  private let catalogs: [String: any ComponentCatalog]
+  /// The surface group model owning all active surfaces.
+  public let surfaceGroupModel: SurfaceGroupModel
+
+  private let catalogs: [String: Catalog]
   private weak var actionHandler: (any ActionHandling)?
+  private let parser = MessageParser()
+  private let errorMapper = MessageErrorMapper()
 
-  private var activeSurfaces: [String: SurfaceViewModel] = [:]
-
-  /// The dictionary of active surfaces, published to the UI on the
-  /// Main Thread.
-  @Published public private(set) var surfaces: [String: SurfaceViewModel] = [:]
-
+  /// Creates a new message processor with an array of catalogs.
   public init(
-    catalogs: [String: any ComponentCatalog],
+    catalogs: [Catalog],
+    actionHandler: (any ActionHandling)? = nil
+  ) {
+    self.catalogs = Dictionary(
+      catalogs.map { ($0.id, $0) },
+      uniquingKeysWith: { _, last in last }
+    )
+    self.actionHandler = actionHandler
+    self.surfaceGroupModel = SurfaceGroupModel()
+  }
+
+  /// Creates a new message processor with a dictionary of catalogs.
+  public init(
+    catalogs: [String: Catalog],
     actionHandler: (any ActionHandling)? = nil
   ) {
     self.catalogs = catalogs
     self.actionHandler = actionHandler
+    self.surfaceGroupModel = SurfaceGroupModel()
   }
 
-  /// Processes a single JSONL line containing an incoming message
-  /// envelope.
+  // MARK: - Surface Lookup & Management
+
+  /// Returns the surface model for the given ID, if it exists.
+  public func getSurface(_ id: String) -> SurfaceViewModel? {
+    surfaceGroupModel.surface(id: id)
+  }
+
+  /// Creates a surface using a catalog ID lookup.
+  public func createSurface(
+    surfaceID: String,
+    catalogID: String
+  ) -> SurfaceViewModel? {
+    guard let catalog = catalogs[catalogID] else { return nil }
+    return createSurface(surfaceID: surfaceID, catalog: catalog)
+  }
+
+  /// Creates a surface directly with a given catalog instance.
+  @discardableResult
+  public func createSurface(
+    surfaceID: String,
+    catalog: Catalog
+  ) -> SurfaceViewModel {
+    let vm = SurfaceViewModel(
+      surfaceID: surfaceID,
+      catalog: catalog,
+      actionHandler: actionHandler
+    )
+    surfaceGroupModel.addSurface(vm)
+    return vm
+  }
+
+  /// Deletes the surface with the given ID.
+  public func deleteSurface(_ surfaceID: String) {
+    surfaceGroupModel.removeSurface(id: surfaceID)
+  }
+
+  /// Returns a snapshot of all active surfaces.
+  public func allSurfaces() -> [String: SurfaceViewModel] {
+    surfaceGroupModel.allSurfaces()
+  }
+
+  /// Returns the aggregated data model for surfaces with `sendDataModel` enabled.
+  public func getClientDataModel() -> JSONValue? {
+    surfaceGroupModel.getClientDataModel()
+  }
+
+  // MARK: - Message Processing (JSONL Line)
+
+  /// Processes a single JSONL line containing an incoming message envelope.
+  ///
+  /// Throws on any failure (decoding error, missing surface, missing catalog).
+  /// Thrown parsing errors are also routed to `ActionHandling` via `MessageErrorMapper`.
   public func process(line: String) throws {
-    let parser = MessageParser()
-    let surfaceID = resolveSurfaceID(fromLine: line) ?? "unknown"
+    let surfaceID = parser.extractSurfaceID(fromLine: line) ?? "unknown"
+    let message: ServerToClientMessage
 
     do {
-      let message = try parser.parse(jsonString: line)
-      switch message {
-      case .createSurface(let createMsg):
-        guard let catalog = catalogs[createMsg.catalogID] else {
-          throw GenericError(
-            code: "CATALOG_NOT_FOUND",
-            surfaceID: createMsg.surfaceID,
-            message: "Catalog not found: \(createMsg.catalogID)"
-          )
-        }
-        let vm = SurfaceViewModel(
-          surfaceID: createMsg.surfaceID,
-          catalog: catalog,
-          actionHandler: actionHandler
-        )
-        if let rawTheme = createMsg.theme {
-          let themeJSON: JSONValue = .object(
-            OrderedDictionary(
-              uniqueKeysWithValues: rawTheme.map { ($0.key, $0.value) }
-            )
-          )
-          if let themeObj = catalog.makeTheme(jsonObject: themeJSON) {
-            vm.updateTheme(themeObj)
-          }
-        }
-        if createMsg.shouldSendDataModel {
-          // Client requests the server to send the data model.
-          // This is handled by the action handler.
-          let action = ResolvedAction(
-            identity: .event(
-              name: "sendDataModel",
-              context: nil
-            ),
-            trigger: {}
-          )
-          actionHandler?.handle(action: action, from: createMsg.surfaceID)
-        }
-        addSurface(vm)
-
-      case .updateComponents(let updateMsg):
-        guard let vm = getSurface(id: updateMsg.surfaceID) else {
-          throw GenericError(
-            code: "SURFACE_NOT_FOUND",
-            surfaceID: updateMsg.surfaceID,
-            message: "Surface not found: \(updateMsg.surfaceID)"
-          )
-        }
-        vm.updateComponents(updateMsg.components)
-
-      case .updateDataModel(let updateMsg):
-        guard let vm = getSurface(id: updateMsg.surfaceID) else {
-          throw GenericError(
-            code: "SURFACE_NOT_FOUND",
-            surfaceID: updateMsg.surfaceID,
-            message: "Surface not found: \(updateMsg.surfaceID)"
-          )
-        }
-        vm.updateDataModel(path: updateMsg.path, value: updateMsg.value)
-
-      case .deleteSurface(let deleteMsg):
-        guard getSurface(id: deleteMsg.surfaceID) != nil else {
-          throw GenericError(
-            code: "SURFACE_NOT_FOUND",
-            surfaceID: deleteMsg.surfaceID,
-            message: "Surface not found: \(deleteMsg.surfaceID)"
-          )
-        }
-        removeSurface(id: deleteMsg.surfaceID)
-      }
+      message = try parser.parse(jsonString: line)
     } catch {
-      handleError(error, surfaceID: surfaceID)
+      let clientError = errorMapper.map(error, surfaceID: surfaceID)
+      actionHandler?.handle(error: clientError, from: surfaceID)
       throw error
     }
+
+    try validateAndProcess(message)
   }
 
-  // MARK: - Thread-Safe Getters and Setters
+  // MARK: - Message Processing (Strongly-Typed)
 
-  /// Thread-safely retrieves all active surfaces.
-  public func getSurfaces() -> [String: SurfaceViewModel] {
-    lock.withLock { activeSurfaces }
+  /// Processes a single server-to-client message.
+  public func processMessage(_ message: ServerToClientMessage) {
+    try? validateAndProcess(message)
   }
 
-  /// Thread-safely retrieves a specific surface by ID.
-  public func getSurface(id: String) -> SurfaceViewModel? {
-    lock.withLock { activeSurfaces[id] }
-  }
-
-  private func addSurface(_ vm: SurfaceViewModel) {
-    lock.withLock {
-      activeSurfaces[vm.surfaceID] = vm
-      let currentSurfaces = activeSurfaces
-      DispatchQueue.main.async { [weak self] in
-        self?.surfaces = currentSurfaces
-      }
+  /// Processes an array of server-to-client messages.
+  public func processMessages(_ messages: [ServerToClientMessage]) {
+    for message in messages {
+      processMessage(message)
     }
   }
 
-  private func removeSurface(id: String) {
-    lock.withLock {
-      activeSurfaces.removeValue(forKey: id)
-      let currentSurfaces = activeSurfaces
-      DispatchQueue.main.async { [weak self] in
-        self?.surfaces = currentSurfaces
-      }
-    }
-  }
+  // MARK: - Direct Surface Mutations & Validation
 
-  // MARK: - Error Conversion & Routing
-
-  private func handleError(_ error: Error, surfaceID: String) {
-    guard let actionHandler = actionHandler else { return }
-
-    if let genericError = error as? GenericError {
-      actionHandler.handle(
-        error: .generic(genericError),
-        from: surfaceID
+  /// Updates components on a surface, validating each against the catalog's schema.
+  public func updateComponents(
+    surfaceID: String,
+    components: [[String: JSONValue]]
+  ) {
+    guard let surface = surfaceGroupModel.surface(id: surfaceID) else {
+      let error = ClientServerError.generic(
+        GenericError(
+          code: "SURFACE_NOT_FOUND",
+          surfaceID: surfaceID,
+          message: "Surface not found: \(surfaceID)"
+        )
       )
-    } else if let decodingError = error as? DecodingError {
-      let codingPath: [CodingKey]
-      switch decodingError {
-      case .typeMismatch(_, let context),
-        .valueNotFound(_, let context),
-        .keyNotFound(_, let context),
-        .dataCorrupted(let context):
-        codingPath = context.codingPath
-      @unknown default:
-        codingPath = []
+      actionHandler?.handle(error: error, from: surfaceID)
+      return
+    }
+
+    for componentDict in components {
+      guard let type = componentDict["component"]?.stringValue else {
+        let error = ClientServerError.validationFailed(
+          ValidationFailedError(
+            surfaceID: surfaceID,
+            path: "/component",
+            message: "Missing required key 'component'"
+          )
+        )
+        actionHandler?.handle(error: error, from: surfaceID)
+        continue
       }
 
-      let pointer = resolveJSONPointer(from: codingPath)
-      let description = resolveDecodingErrorDescription(decodingError)
-
-      switch decodingError {
-      case .typeMismatch, .valueNotFound, .keyNotFound:
-        let validation = ValidationFailedError(
-          surfaceID: surfaceID,
-          path: pointer,
-          message: description
+      guard let id = componentDict["id"]?.stringValue else {
+        let error = ClientServerError.validationFailed(
+          ValidationFailedError(
+            surfaceID: surfaceID,
+            path: "/id",
+            message: "Missing required key 'id'"
+          )
         )
-        actionHandler.handle(
-          error: .validationFailed(validation),
-          from: surfaceID
-        )
-      case .dataCorrupted:
-        let generic = GenericError(
-          code: "PARSING_FAILED",
-          surfaceID: surfaceID,
-          message: description
-        )
-        actionHandler.handle(error: .generic(generic), from: surfaceID)
-      @unknown default:
-        let generic = GenericError(
-          code: "PARSING_FAILED",
-          surfaceID: surfaceID,
-          message: description
-        )
-        actionHandler.handle(error: .generic(generic), from: surfaceID)
+        actionHandler?.handle(error: error, from: surfaceID)
+        continue
       }
-    } else {
-      let generic = GenericError(
-        code: "PARSING_FAILED",
-        surfaceID: surfaceID,
-        message: error.localizedDescription
+
+      guard let schema = surface.catalog.components[type]?.schema else {
+        let error = ClientServerError.validationFailed(
+          ValidationFailedError(
+            surfaceID: surfaceID,
+            path: "/component",
+            message: "Unknown component type '\(type)' not registered in catalog"
+          )
+        )
+        actionHandler?.handle(error: error, from: surfaceID)
+        continue
+      }
+
+      let instance: JSONValue = .object(
+        OrderedDictionary(
+          uniqueKeysWithValues: componentDict.map { ($0.key, $0.value) }
+        )
       )
-      actionHandler.handle(error: .generic(generic), from: surfaceID)
-    }
-  }
+      let result = schema.validate(instance)
 
-  private func resolveSurfaceID(fromLine line: String) -> String? {
-    guard let data = line.data(using: .utf8),
-      let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-    else {
-      return nil
-    }
+      if result.isValid {
+        var props: [String: JSONValue] = [:]
+        for (key, val) in componentDict where key != "id" && key != "component" {
+          props[key] = val
+        }
 
-    for value in dict.values {
-      guard let subDict = value as? [String: Any],
-        let rawID = subDict["surfaceId"]
-      else { continue }
-
-      if let strID = rawID as? String {
-        return strID
-      } else if let numID = rawID as? NSNumber {
-        return numID.stringValue
-      }
-    }
-    return nil
-  }
-
-  private func resolveJSONPointer(from codingPath: [CodingKey]) -> String {
-    guard !codingPath.isEmpty else { return "" }
-    let pointer = codingPath.map { key in
-      if let intVal = key.intValue {
-        return String(intVal)
+        let existing = surface.componentsModel.get(id)
+        if existing != nil && existing?.type != type {
+          // Component type changed: recreate component to reset state
+          surface.componentsModel.removeComponent(id)
+          surface.componentsModel.addComponent(
+            ComponentModel(id: id, type: type, properties: props)
+          )
+        } else {
+          surface.componentsModel.addComponent(
+            ComponentModel(id: id, type: type, properties: props)
+          )
+        }
       } else {
-        return key.stringValue
+        let errorMessage = result.errors?.first?.message ?? "Validation failed"
+        let errorPath = result.errors?.first?.instanceLocation.jsonPointerString ?? "/"
+        let error = ClientServerError.validationFailed(
+          ValidationFailedError(
+            surfaceID: surfaceID,
+            path: errorPath,
+            message: errorMessage
+          )
+        )
+        actionHandler?.handle(error: error, from: surfaceID)
       }
-    }.joined(separator: "/")
-    return "/" + pointer
+    }
+
+    surface.rebuildTree()
   }
 
-  private func resolveDecodingErrorDescription(_ error: DecodingError) -> String {
-    switch error {
-    case .typeMismatch(let type, let context):
-      return "Type mismatch: expected type '\(type)', got '\(context.debugDescription)'"
-    case .valueNotFound(let type, let context):
-      return "Missing value: expected non-nil '\(type)', got '\(context.debugDescription)'"
-    case .keyNotFound(let key, let context):
-      return "Missing required key '\(key.stringValue)': \(context.debugDescription)"
-    case .dataCorrupted(let context):
-      return "JSON syntax error: \(context.debugDescription)"
-    @unknown default:
-      return "Unknown decoding error"
+  /// Updates a path in a surface's data model.
+  public func updateDataModel(
+    surfaceID: String,
+    path: String,
+    value: JSONValue?
+  ) {
+    guard let surface = surfaceGroupModel.surface(id: surfaceID) else {
+      let error = ClientServerError.generic(
+        GenericError(
+          code: "SURFACE_NOT_FOUND",
+          surfaceID: surfaceID,
+          message: "Surface not found: \(surfaceID)"
+        )
+      )
+      actionHandler?.handle(error: error, from: surfaceID)
+      return
+    }
+    surface.dataModel.set(path, value: value)
+    surface.rebuildTree()
+  }
+
+  // MARK: - Private Validation & Processing
+
+  private func validateAndProcess(_ message: ServerToClientMessage) throws {
+    switch message {
+    case .createSurface(let msg):
+      guard surfaceGroupModel.surface(id: msg.surfaceID) == nil else {
+        let error = GenericError(
+          code: "SURFACE_EXISTS",
+          surfaceID: msg.surfaceID,
+          message: "Surface \(msg.surfaceID) already exists."
+        )
+        throw error
+      }
+      guard let catalog = catalogs[msg.catalogID] else {
+        let error = GenericError(
+          code: "CATALOG_NOT_FOUND",
+          surfaceID: msg.surfaceID,
+          message: "Catalog not found: \(msg.catalogID)"
+        )
+        throw error
+      }
+      let vm = SurfaceViewModel(
+        surfaceID: msg.surfaceID,
+        catalog: catalog,
+        actionHandler: actionHandler
+      )
+      if msg.shouldSendDataModel {
+        surfaceGroupModel.setSendDataModel(surfaceID: msg.surfaceID, enabled: true)
+      }
+      surfaceGroupModel.addSurface(vm)
+
+    case .updateComponents(let msg):
+      guard surfaceGroupModel.surface(id: msg.surfaceID) != nil else {
+        let error = GenericError(
+          code: "SURFACE_NOT_FOUND",
+          surfaceID: msg.surfaceID,
+          message: "Surface not found: \(msg.surfaceID)"
+        )
+        throw error
+      }
+      updateComponents(surfaceID: msg.surfaceID, components: msg.components)
+
+    case .updateDataModel(let msg):
+      guard surfaceGroupModel.surface(id: msg.surfaceID) != nil else {
+        let error = GenericError(
+          code: "SURFACE_NOT_FOUND",
+          surfaceID: msg.surfaceID,
+          message: "Surface not found: \(msg.surfaceID)"
+        )
+        throw error
+      }
+      updateDataModel(surfaceID: msg.surfaceID, path: msg.path, value: msg.value)
+
+    case .deleteSurface(let msg):
+      guard surfaceGroupModel.surface(id: msg.surfaceID) != nil else {
+        let error = GenericError(
+          code: "SURFACE_NOT_FOUND",
+          surfaceID: msg.surfaceID,
+          message: "Surface not found: \(msg.surfaceID)"
+        )
+        throw error
+      }
+      surfaceGroupModel.removeSurface(id: msg.surfaceID)
     }
   }
 }
