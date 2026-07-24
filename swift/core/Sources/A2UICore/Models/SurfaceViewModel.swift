@@ -168,7 +168,7 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
     definitionID: String,
     instanceID: String,
     basePath: String?,
-    visited: [String]
+    visited: Set<String>
   ) -> Node? {
     guard !visited.contains(instanceID) else {
       // Cycle detected: this instance is already being resolved
@@ -181,7 +181,8 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
     }
 
     let type = component.type
-    let visited = visited + [instanceID]
+    var visited = visited
+    visited.insert(instanceID)
 
     // Get the schema for this component type to classify properties
     let schema = catalog.components[type]?.schema
@@ -215,7 +216,7 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
     basePath: String?,
     componentID: String,
     propertyKey: String,
-    visited: [String]
+    visited: Set<String>
   ) -> (any Resolved)? {
     switch type {
     case .dynamicBoolean:
@@ -504,7 +505,7 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
     basePath: String?,
     componentID: String,
     propertyKey: String,
-    visited: [String]
+    visited: Set<String>
   ) -> [Node]? {
     switch value {
     case .array(let arr):
