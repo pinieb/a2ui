@@ -54,6 +54,7 @@ extension Surface {
   ///   - node: The resolved engine node to render.
   ///   - catalogImplementation: The catalog implementation defining available component builders.
   /// - Returns: The rendered `AnyView`, or `nil` if no corresponding view builder was found.
+  @MainActor
   public static func render(
     node: Node,
     using catalogImplementation: CatalogImplementation?

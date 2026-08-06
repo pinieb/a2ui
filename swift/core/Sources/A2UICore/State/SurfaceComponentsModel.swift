@@ -25,7 +25,18 @@ public final class SurfaceComponentsModel: @unchecked Sendable, ObservableObject
 
   private let lock = NSRecursiveLock()
 
-  @Published public private(set) var components: [String: ComponentModel] = [:]
+  public private(set) var components: [String: ComponentModel] = [:] {
+    didSet {
+      componentsSubject.send(components)
+    }
+  }
+
+  private let componentsSubject = CurrentValueSubject<[String: ComponentModel], Never>([:])
+
+  /// Publisher emitting the updated component map after every mutation.
+  public var componentsPublisher: AnyPublisher<[String: ComponentModel], Never> {
+    componentsSubject.eraseToAnyPublisher()
+  }
 
   /// Creates an empty components model.
   public init() {}

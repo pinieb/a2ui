@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import A2UICore
+import A2UISwiftUI
 import Combine
 import Foundation
 
@@ -87,13 +88,15 @@ public final class GalleryViewModel: @unchecked Sendable, ObservableObject {
   @Published public private(set) var logEntries: [DiagnosticLogEntry] = []
   @Published public private(set) var dataModelString: String = "{}"
 
+  public let catalogImplementation: CatalogImplementation
   private var processor: MessageProcessor
   private var surfaceSubscription: AnyCancellable?
   private let handler = GalleryActionHandler()
 
   public init() {
+    self.catalogImplementation = CatalogImplementation.basic()
     self.processor = MessageProcessor(
-      catalogs: EmptyBasicCatalog.allCatalogs,
+      catalogs: BasicCatalog.allCatalogs,
       actionHandler: self.handler
     )
     self.handler.viewModel = self
@@ -115,7 +118,7 @@ public final class GalleryViewModel: @unchecked Sendable, ObservableObject {
     surfaceSubscription = nil
 
     self.processor = MessageProcessor(
-      catalogs: EmptyBasicCatalog.allCatalogs,
+      catalogs: BasicCatalog.allCatalogs,
       actionHandler: self.handler
     )
     self.currentStepIndex = 0
@@ -163,7 +166,7 @@ public final class GalleryViewModel: @unchecked Sendable, ObservableObject {
       activeSurfaceViewModel = firstSurface
       firstSurface.actionHandler = self.handler
 
-      surfaceSubscription = firstSurface.dataModel.$data
+      surfaceSubscription = firstSurface.dataModel.dataPublisher
         .sink { [weak self] newJSON in
           Task { @MainActor in
             self?.updateDataModelString(from: newJSON)

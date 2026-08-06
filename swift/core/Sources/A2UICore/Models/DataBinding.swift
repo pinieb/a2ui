@@ -29,17 +29,35 @@ public struct DataBinding<Value: Sendable>: Sendable {
   /// The unique identity of this binding.
   public let identity: Identity
 
+  /// The snapshot value of this binding at the time it was resolved.
+  public let currentValue: Value
+
   private let getter: @Sendable () -> Value
   private let setter: @Sendable (Value) -> Void
 
   /// Creates a new data binding with the specified identity, getter,
-  /// and setter.
+  /// and setter, snapshotting the current value immediately.
   public init(
     identity: Identity,
     get: @escaping @Sendable () -> Value,
     set: @escaping @Sendable (Value) -> Void
   ) {
     self.identity = identity
+    self.currentValue = get()
+    self.getter = get
+    self.setter = set
+  }
+
+  /// Creates a new data binding with the specified identity, snapshot value,
+  /// getter, and setter.
+  public init(
+    identity: Identity,
+    value: Value,
+    get: @escaping @Sendable () -> Value,
+    set: @escaping @Sendable (Value) -> Void
+  ) {
+    self.identity = identity
+    self.currentValue = value
     self.getter = get
     self.setter = set
   }
@@ -55,10 +73,10 @@ public struct DataBinding<Value: Sendable>: Sendable {
   }
 }
 
-extension DataBinding: Equatable {
+extension DataBinding: Equatable where Value: Equatable {
   public static func == (lhs: DataBinding<Value>, rhs: DataBinding<Value>) -> Bool {
-    lhs.identity == rhs.identity
+    lhs.identity == rhs.identity && lhs.currentValue == rhs.currentValue
   }
 }
 
-extension DataBinding: Resolved {}
+extension DataBinding: Resolved where Value: Equatable {}

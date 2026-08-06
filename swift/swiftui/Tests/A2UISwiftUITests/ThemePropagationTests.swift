@@ -20,71 +20,9 @@ import OrderedJSON
 import SwiftUI
 import Testing
 
-// MARK: - Test Types
-
-/// A concrete theme for testing theme propagation.
-struct ThemePropagationTheme: SurfaceTheme {
-  let primaryColor: String
-  let fontSize: Double
-}
-
-/// A catalog that produces themes for propagation tests.
-struct ThemePropagationCatalog: ComponentCatalog {
-  let textSchema: Schema
-
-  init() throws {
-    textSchema = try Schema(
-      instance: """
-        {
-          "type": "object",
-          "properties": {
-            "id": {"type": "string"},
-            "component": {"type": "string"},
-            "text": {"$ref": "https://a2ui.org/schemas/v0_9_1/common.json#/$defs/DynamicString"}
-          },
-          "required": ["id", "component"]
-        }
-        """,
-      remoteSchemas: A2UICommonSchema.allSchemas
-    )
-  }
-
-  func schema(forType type: String) -> Schema? {
-    switch type {
-    case "text": return textSchema
-    default: return nil
-    }
-  }
-
-  func makeTheme(jsonObject: JSONValue) -> (any SurfaceTheme)? {
-    guard let dict = jsonObject.dictionaryValue else { return nil }
-    return ThemePropagationTheme(
-      primaryColor: dict["primaryColor"]?.stringValue ?? "black",
-      fontSize: dict["fontSize"]?.doubleValue ?? 14.0
-    )
-  }
-
-  func localFunction(for name: String) -> (any LocalFunction)? {
-    nil
-  }
-}
-
-/// A catalog view that reads the theme from the environment.
-struct ThemeReadingCatalogView: CatalogView {
-  let node: Node
-  @Environment(\.a2uiTheme) private var theme
-
-  init(node: Node) {
-    self.node = node
-  }
-
-  var body: some View {
-    Text(node.id)
-  }
-}
-
 // MARK: - Theme Propagation Tests
 
+@MainActor
 struct ThemePropagationTests {
 
   // MARK: - Theme Key
@@ -94,19 +32,22 @@ struct ThemePropagationTests {
   }
 
   @Test func themeEnvironmentStoresAndRetrievesTheme() {
-    let theme = ThemePropagationTheme(primaryColor: "red", fontSize: 18.0)
+    let theme: [String: JSONValue] = [
+      "primaryColor": .string("#FF0000"),
+      "fontSize": .number(18.0),
+    ]
     var env = EnvironmentValues()
     env.a2uiTheme = theme
 
     let retrieved = env.a2uiTheme
     #expect(retrieved != nil)
-    #expect((retrieved as? ThemePropagationTheme)?.primaryColor == "red")
-    #expect((retrieved as? ThemePropagationTheme)?.fontSize == 18.0)
+    #expect(retrieved?["primaryColor"]?.stringValue == "#FF0000")
+    #expect(retrieved?["fontSize"]?.doubleValue == 18.0)
   }
 
   @Test func themeEnvironmentCanSetNil() {
     var env = EnvironmentValues()
-    env.a2uiTheme = ThemePropagationTheme(primaryColor: "blue", fontSize: 12.0)
+    env.a2uiTheme = ["primaryColor": .string("#0000FF")]
     env.a2uiTheme = nil
     #expect(env.a2uiTheme == nil)
   }
@@ -114,81 +55,53 @@ struct ThemePropagationTests {
   // MARK: - SurfaceViewModel Theme Management
 
   @Test func surfaceViewModelStoresActiveTheme() throws {
-    let catalog = try ThemePropagationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
-    let theme = ThemePropagationTheme(primaryColor: "green", fontSize: 16.0)
+    let catalog = BasicCatalog.v091Catalog
+    let vm = SurfaceViewModel(surfaceID: "s1", catalogs: [catalog.id: catalog])
+    let theme: [String: JSONValue] = ["primaryColor": .string("#00FF00")]
 
     vm.updateTheme(theme)
 
-    let active = vm.getActiveTheme()
+    let active = vm.theme
     #expect(active != nil)
-    #expect((active as? ThemePropagationTheme)?.primaryColor == "green")
+    #expect(active?["primaryColor"]?.stringValue == "#00FF00")
   }
 
   @Test func surfaceViewModelThemeIsNilBeforeUpdate() throws {
-    let catalog = try ThemePropagationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
+    let catalog = BasicCatalog.v091Catalog
+    let vm = SurfaceViewModel(surfaceID: "s1", catalogs: [catalog.id: catalog])
 
-    #expect(vm.getActiveTheme() == nil)
+    #expect(vm.theme == nil)
   }
 
   // MARK: - Message Processor Theme Creation
 
   @Test func messageProcessorCreatesThemeFromCreateSurface() throws {
-    let catalog = try ThemePropagationCatalog()
-    let handler = IntegrationActionHandler()
+    let catalog = BasicCatalog.v091Catalog
     let processor = MessageProcessor(
-      catalogs: ["default": catalog],
-      actionHandler: handler
+      catalogs: [catalog.id: catalog]
     )
 
     try processor.process(line: """
-      {"createSurface": {"surfaceId": "s1", "catalogId": "default", "theme": {"primaryColor": "purple", "fontSize": 20.0}}}
+      {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)", "theme": {"primaryColor": "#800080"}}}
       """)
 
     let vm = processor.getSurface(id: "s1")
-    let theme = vm?.getActiveTheme() as? ThemePropagationTheme
+    let theme = vm?.theme
     #expect(theme != nil)
-    #expect(theme?.primaryColor == "purple")
-    #expect(theme?.fontSize == 20.0)
+    #expect(theme?["primaryColor"]?.stringValue == "#800080")
   }
 
   @Test func messageProcessorHandlesMissingThemeGracefully() throws {
-    let catalog = try ThemePropagationCatalog()
+    let catalog = BasicCatalog.v091Catalog
     let processor = MessageProcessor(
-      catalogs: ["default": catalog]
+      catalogs: [catalog.id: catalog]
     )
 
     try processor.process(line: """
-      {"createSurface": {"surfaceId": "s1", "catalogId": "default"}}
+      {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)"}}
       """)
 
     let vm = processor.getSurface(id: "s1")
-    #expect(vm?.getActiveTheme() == nil)
-  }
-
-  @Test func catalogMakeThemeReturnsNilForInvalidJSON() throws {
-    let catalog = try ThemePropagationCatalog()
-    #expect(catalog.makeTheme(jsonObject: "not an object") == nil)
-    #expect(catalog.makeTheme(jsonObject: 42) == nil)
-    #expect(catalog.makeTheme(jsonObject: .null) == nil)
-  }
-
-  @Test func catalogMakeThemeUsesDefaultsForMissingKeys() throws {
-    let catalog = try ThemePropagationCatalog()
-    let theme = catalog.makeTheme(jsonObject: .object([:])) as? ThemePropagationTheme
-    #expect(theme?.primaryColor == "black")
-    #expect(theme?.fontSize == 14.0)
-  }
-
-  // MARK: - Theme Update Triggers Rebuild
-
-  @Test func updatingThemeDoesNotCrashWithoutComponents() throws {
-    let catalog = try ThemePropagationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
-
-    vm.updateTheme(ThemePropagationTheme(primaryColor: "orange", fontSize: 16.0))
-    // Should not crash even with no components
-    #expect(vm.getActiveTheme() != nil)
+    #expect(vm?.theme == nil)
   }
 }

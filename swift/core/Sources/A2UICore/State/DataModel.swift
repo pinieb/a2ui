@@ -25,16 +25,33 @@ import OrderedJSON
 public final class DataModel: @unchecked Sendable, ObservableObject {
 
   private let lock = NSRecursiveLock()
-  @Published public private(set) var data: JSONValue = .object([:])
+
+  public private(set) var data: JSONValue = .object([:]) {
+    didSet {
+      dataSubject.send(data)
+    }
+  }
+
+  private let dataSubject: CurrentValueSubject<JSONValue, Never>
+
+  /// Publisher emitting the updated data value after every mutation.
+  public var dataPublisher: AnyPublisher<JSONValue, Never> {
+    dataSubject.eraseToAnyPublisher()
+  }
 
   /// Creates an empty data model.
-  public init() {}
+  public init() {
+    let initial: JSONValue = .object([:])
+    self.data = initial
+    self.dataSubject = CurrentValueSubject(initial)
+  }
 
   /// Creates a data model with an initial value.
   ///
   /// - Parameter initial: The initial JSON value for the root.
   public init(initial: JSONValue) {
     self.data = initial
+    self.dataSubject = CurrentValueSubject(initial)
   }
 
   /// Resolves a JSON Pointer path to a value.

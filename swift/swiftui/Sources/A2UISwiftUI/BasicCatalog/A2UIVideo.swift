@@ -1,0 +1,60 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import A2UICore
+import AVKit
+import OrderedJSON
+import SwiftUI
+
+/// SwiftUI component view for the A2UI Basic Catalog `Video` component.
+public struct A2UIVideo: View {
+  public let node: Node
+
+  public init(node: Node) {
+    self.node = node
+  }
+
+  private var urlString: String {
+    if let binding = node.properties["url"] as? DataBinding<String> {
+      return binding.get()
+    }
+    if let str = node.properties["url"] as? String {
+      return str
+    }
+    if let json = node.properties["url"] as? JSONValue {
+      return json.stringValue ?? ""
+    }
+    return ""
+  }
+
+  public var body: some View {
+    if let url = URL(string: urlString), !urlString.isEmpty {
+      VideoPlayer(player: AVPlayer(url: url))
+        .frame(minHeight: 220)
+        .cornerRadius(8)
+    } else {
+      VStack(spacing: 8) {
+        Image(systemName: "video.slash")
+          .font(.largeTitle)
+          .foregroundStyle(.secondary)
+        Text("No video URL provided")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+      .frame(maxWidth: .infinity, minHeight: 200)
+      .background(Color.gray.opacity(0.12))
+      .cornerRadius(8)
+    }
+  }
+}

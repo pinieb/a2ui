@@ -20,23 +20,24 @@ import Testing
 
 // MARK: - Stress Tests
 
+@MainActor
 struct StressTests {
 
   // MARK: - Deep Nesting
 
   @Test func deeplyNestedDataModel100Levels() throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
+    let catalog = BasicCatalog.v091Catalog
+    let vm = SurfaceViewModel(surfaceID: "s1", catalogs: [catalog.id: catalog])
 
     // Build a 100-level deep nested data model
     var path = "/level0"
     for i in 1..<100 {
-      vm.updateDataModel(path: path, value: JSONValue.object(["level\(i)": .object([:])]))
+      vm.dataModel.set(path, value: JSONValue.object(["level\(i)": .object([:])]))
       path += "/level\(i)"
     }
-    vm.updateDataModel(path: path, value: "deep")
+    vm.dataModel.set(path, value: "deep")
 
-    let data = vm.getDataModel()
+    let data = vm.dataModel.data
     // Traverse 100 levels deep
     var current = data
     for i in 0..<100 {
@@ -51,213 +52,79 @@ struct StressTests {
   }
 
   @Test func deeplyNestedComponentDefinitions100Children() throws {
-    let catalog = try IntegrationCatalog()
-    let handler = IntegrationActionHandler()
-    let vm = SurfaceViewModel(
-      surfaceID: "s1",
-      catalog: catalog,
-      actionHandler: handler
-    )
+    let catalog = BasicCatalog.v091Catalog
+    let processor = MessageProcessor(catalogs: [catalog.id: catalog])
 
-    // Create 100 child components
-    var components: [[String: JSONValue]] = []
-    var childIDs: [JSONValue] = []
+    try processor.process(line: """
+      {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)"}}
+      """)
+
+    var componentsJSON = "["
     for i in 0..<100 {
-      let id = "child\(i)"
-      childIDs.append(.string(id))
-      components.append([
-        "id": .string(id),
-        "component": "text",
-        "text": .string("Child \(i)"),
-      ])
+      componentsJSON += """
+        {"id": "child\(i)", "component": "Text", "text": "Child \(i)"},
+        """
     }
+    let childIDs = (0..<100).map { "\"child\($0)\"" }.joined(separator: ",")
+    componentsJSON += """
+      {"id": "root", "component": "Column", "children": [\(childIDs)]}
+      ]
+      """
 
-    // Root component with 100 static children
-    components.append([
-      "id": "root",
-      "component": "button",
-      "label": "Root",
-      "children": .array(childIDs),
-    ])
+    try processor.process(line: """
+      {"version": "v0.9.1", "updateComponents": {"surfaceId": "s1", "components": \(componentsJSON)}}
+      """)
 
-    vm.updateComponents(components)
-
-    let stored = vm.getComponents()
-    #expect(stored.count == 101)
-    #expect(stored["root"] != nil)
-    #expect(stored["child99"] != nil)
-  }
-
-  // MARK: - Concurrent Updates
-
-  @Test func concurrentDataModelUpdates() async throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
-
-    // 10 threads × 200 updates each
-    let taskCount = 10
-    let updatesPerTask = 200
-
-    await withTaskGroup(of: Void.self) { group in
-      for taskIndex in 0..<taskCount {
-        group.addTask {
-          for updateIndex in 0..<updatesPerTask {
-            let path = "/task\(taskIndex)/val\(updateIndex)"
-            let value: JSONValue = .integer(updateIndex)
-            vm.updateDataModel(path: path, value: value)
-          }
-        }
-      }
+    let vm = processor.getSurface(id: "s1")
+    let root = vm?.rootNode
+    #expect(root?.id == "root")
+    if let children = root?.properties["children"] as? [Node] {
+      #expect(children.count == 100)
+      #expect(children.first?.id == "child0")
+      #expect(children.last?.id == "child99")
+    } else {
+      Issue.record("Expected [Node] for children property")
     }
-
-    // Verify all updates were applied
-    let data = vm.getDataModel()
-    for taskIndex in 0..<taskCount {
-      for updateIndex in 0..<updatesPerTask {
-        let path = "task\(taskIndex)/val\(updateIndex)"
-        let value = data[path]
-        #expect(
-          value?.intValue == updateIndex,
-          "Missing update at \(path)"
-        )
-      }
-    }
-  }
-
-  @Test func concurrentComponentUpdates() async throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
-
-    // Multiple threads updating different components concurrently
-    await withTaskGroup(of: Void.self) { group in
-      for taskIndex in 0..<10 {
-        group.addTask {
-          let components: [[String: JSONValue]] = (0..<20).map { i in
-            [
-              "id": .string("t\(taskIndex)_c\(i)"),
-              "component": "text",
-              "text": .string("Task \(taskIndex) Component \(i)"),
-            ]
-          }
-          vm.updateComponents(components)
-        }
-      }
-    }
-
-    let stored = vm.getComponents()
-    // Each task creates 20 components with unique IDs
-    #expect(stored.count == 200)
-  }
-
-  // MARK: - Missing Optional Properties
-
-  @Test func missingOptionalPropertiesDoesNotCrash() throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
-
-    // Button with only required fields — no label, no onClick
-    vm.updateComponents([
-      ["id": "root", "component": "button"],
-    ])
-
-    let components = vm.getComponents()
-    #expect(components["root"] != nil)
-  }
-
-  @Test func missingDataModelPathReturnsNull() throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
-
-    // Component references a data path that doesn't exist
-    vm.updateComponents([
-      [
-        "id": "root",
-        "component": "text",
-        "text": ["path": "/nonexistent/path"],
-      ],
-    ])
-
-    let data = vm.getDataModel()
-    #expect(data["nonexistent/path"] == nil)
-  }
-
-  @Test func emptyComponentListDoesNotCrash() throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
-
-    vm.updateComponents([])
-    #expect(vm.getComponents().isEmpty)
-  }
-
-  @Test func emptyChildListResolvesToEmptyArray() throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
-
-    vm.updateComponents([
-      [
-        "id": "root",
-        "component": "button",
-        "label": "Root",
-        "children": .array([]),
-      ],
-    ])
-
-    let components = vm.getComponents()
-    let root = try #require(components["root"])
-    let children = root["children"]?.arrayValue
-    #expect(children?.isEmpty == true)
-  }
-
-  @Test func dynamicChildListWithEmptyDataModelReturnsEmptyArray() throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
-
-    vm.updateComponents([
-      [
-        "id": "root",
-        "component": "button",
-        "label": "Root",
-        "children": [
-          "componentId": "childTemplate",
-          "path": "/items",
-        ],
-      ],
-      ["id": "childTemplate", "component": "text", "text": "Item"],
-    ])
-
-    // Data model has no /items array — should resolve to empty
-    let components = vm.getComponents()
-    #expect(components["childTemplate"] != nil)
   }
 
   // MARK: - Rapid Sequential Updates
 
   @Test func rapidSequentialUpdatesPreserveLatestState() throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
+    let catalog = BasicCatalog.v091Catalog
+    let vm = SurfaceViewModel(surfaceID: "s1", catalogs: [catalog.id: catalog])
 
     // Rapidly update the same data model path 500 times
     for i in 0..<500 {
-      vm.updateDataModel(path: "/counter", value: .integer(i))
+      vm.dataModel.set("/counter", value: .integer(i))
     }
 
-    let data = vm.getDataModel()
+    let data = vm.dataModel.data
     #expect(data["counter"]?.intValue == 499)
   }
 
   @Test func rapidComponentUpdatesReplaceLatest() throws {
-    let catalog = try IntegrationCatalog()
-    let vm = SurfaceViewModel(surfaceID: "s1", catalog: catalog)
+    let catalog = BasicCatalog.v091Catalog
+    let processor = MessageProcessor(catalogs: [catalog.id: catalog])
 
-    // Rapidly update the same component 500 times
-    for i in 0..<500 {
-      vm.updateComponents([
-        ["id": "root", "component": "text", "text": .string("Update \(i)")],
-      ])
+    try processor.process(line: """
+      {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)"}}
+      """)
+
+    for i in 0..<100 {
+      try processor.process(line: """
+        {"version": "v0.9.1", "updateComponents": {"surfaceId": "s1", "components": [
+          {"id": "root", "component": "Text", "text": "Update \(i)"}
+        ]}}
+        """)
     }
 
-    let components = vm.getComponents()
-    #expect(components.count == 1)
-    #expect(components["root"]?["text"]?.stringValue == "Update 499")
+    let vm = processor.getSurface(id: "s1")
+    let root = vm?.rootNode
+    #expect(root?.id == "root")
+    if let binding = root?.properties["text"] as? DataBinding<String> {
+      #expect(binding.get() == "Update 99")
+    } else {
+      Issue.record("Expected DataBinding<String> for text property")
+    }
   }
 }

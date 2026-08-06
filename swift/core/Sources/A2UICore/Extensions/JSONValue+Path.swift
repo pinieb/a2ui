@@ -131,8 +131,9 @@ extension JSONValue {
 
   /// Parses a JSON Pointer-style path into components.
   static func parsePath(_ path: String) -> [String] {
-    guard !path.isEmpty else { return [] }
+    guard !path.isEmpty && path != "/" else { return [] }
     let adjustedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+    guard !adjustedPath.isEmpty else { return [] }
     return adjustedPath.split(separator: "/", omittingEmptySubsequences: false).map {
       String($0)
         .replacingOccurrences(of: "~1", with: "/")

@@ -61,6 +61,11 @@ public final class MessageProcessor: ObservableObject {
     self.surfaceGroupModel = SurfaceGroupModel()
   }
 
+  /// Retrieves a surface view model by surface ID.
+  public func getSurface(id: String) -> SurfaceViewModel? {
+    surfaceGroupModel.surface(id: id)
+  }
+
   /// Returns the aggregated data model for surfaces with `sendDataModel` enabled.
   public func getClientDataModel() -> JSONValue? {
     var result: OrderedDictionary<String, JSONValue> = [:]

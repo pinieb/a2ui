@@ -17,7 +17,7 @@ import JSONSchema
 import SwiftUI
 
 /// A closure that constructs a SwiftUI view from a resolved engine node.
-public typealias ComponentViewBuilder = (Node) -> AnyView
+public typealias ComponentViewBuilder = @MainActor @Sendable (Node) -> AnyView
 
 /// A concrete component implementation for SwiftUI rendering.
 ///

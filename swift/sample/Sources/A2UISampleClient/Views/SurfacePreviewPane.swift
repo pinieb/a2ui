@@ -30,7 +30,7 @@ public struct SurfacePreviewPane: View {
       headerToolbar
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color(.secondarySystemBackground))
+        .background(Color.gray.opacity(0.08))
 
       Divider()
 
@@ -38,9 +38,12 @@ public struct SurfacePreviewPane: View {
       ScrollView {
         VStack(spacing: 16) {
           if let surfaceVM = viewModel.activeSurfaceViewModel {
-            A2UISwiftUI.Surface(viewModel: surfaceVM, registry: ComponentRegistry())
-              .frame(minWidth: 100, minHeight: 100)
-              .padding()
+            A2UISwiftUI.Surface(
+              viewModel: surfaceVM,
+              catalogImplementation: viewModel.catalogImplementation
+            )
+            .frame(minWidth: 100, minHeight: 100)
+            .padding()
 
             if surfaceVM.rootNode == nil {
               VStack(spacing: 8) {
@@ -52,7 +55,7 @@ public struct SurfacePreviewPane: View {
                   .foregroundStyle(.secondary)
                 Text("Advance the stepper to evaluate component definitions.")
                   .font(.caption)
-                  .foregroundStyle(.tertiary)
+                  .foregroundStyle(.secondary)
                   .multilineTextAlignment(.center)
               }
               .padding(32)
@@ -75,7 +78,6 @@ public struct SurfacePreviewPane: View {
         }
         .frame(maxWidth: .infinity)
       }
-      .background(Color(.systemBackground))
     }
   }
 
