@@ -70,10 +70,10 @@ public struct A2UITextField: View {
         .frame(minHeight: 80)
     case "number":
       #if os(iOS)
-      TextField(labelText, text: valueBinding)
-        .keyboardType(.decimalPad)
+        TextField(labelText, text: valueBinding)
+          .keyboardType(.decimalPad)
       #else
-      TextField(labelText, text: valueBinding)
+        TextField(labelText, text: valueBinding)
       #endif
     default:
       TextField(labelText, text: valueBinding)

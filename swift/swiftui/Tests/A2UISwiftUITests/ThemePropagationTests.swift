@@ -81,9 +81,10 @@ struct ThemePropagationTests {
       catalogs: [catalog.id: catalog]
     )
 
-    try processor.process(line: """
-      {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)", "theme": {"primaryColor": "#800080"}}}
-      """)
+    try processor.process(
+      line: """
+        {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)", "theme": {"primaryColor": "#800080"}}}
+        """)
 
     let vm = processor.getSurface(id: "s1")
     let theme = vm?.theme
@@ -97,9 +98,10 @@ struct ThemePropagationTests {
       catalogs: [catalog.id: catalog]
     )
 
-    try processor.process(line: """
-      {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)"}}
-      """)
+    try processor.process(
+      line: """
+        {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)"}}
+        """)
 
     let vm = processor.getSurface(id: "s1")
     #expect(vm?.theme == nil)

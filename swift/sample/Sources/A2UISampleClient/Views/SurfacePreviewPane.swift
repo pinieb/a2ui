@@ -67,11 +67,13 @@ public struct SurfacePreviewPane: View {
                 .foregroundStyle(.secondary)
               Text("Stream Ready")
                 .font(.headline)
-              Text("Tap 'Advance Step' or 'Play All' above to evaluate the initial createSurface message.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+              Text(
+                "Tap 'Advance Step' or 'Play All' above to evaluate the initial createSurface message."
+              )
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+              .multilineTextAlignment(.center)
+              .padding(.horizontal)
             }
             .padding(.top, 48)
           }
@@ -113,7 +115,9 @@ public struct SurfacePreviewPane: View {
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.capsule)
         .controlSize(.small)
-        .disabled(viewModel.selectedSample == nil || viewModel.currentStepIndex >= (viewModel.selectedSample?.rawMessages.count ?? 0))
+        .disabled(
+          viewModel.selectedSample == nil
+            || viewModel.currentStepIndex >= (viewModel.selectedSample?.rawMessages.count ?? 0))
 
         Button(action: { viewModel.playRemaining() }) {
           Image(systemName: "forward.end.fill")
@@ -122,7 +126,9 @@ public struct SurfacePreviewPane: View {
         .buttonStyle(.bordered)
         .buttonBorderShape(.capsule)
         .controlSize(.small)
-        .disabled(viewModel.selectedSample == nil || viewModel.currentStepIndex >= (viewModel.selectedSample?.rawMessages.count ?? 0))
+        .disabled(
+          viewModel.selectedSample == nil
+            || viewModel.currentStepIndex >= (viewModel.selectedSample?.rawMessages.count ?? 0))
       }
     }
   }

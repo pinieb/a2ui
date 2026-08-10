@@ -63,8 +63,8 @@ private struct CheckboxToggleStyle: ToggleStyle {
   }
 }
 
-private extension ToggleStyle where Self == CheckboxToggleStyle {
-  static var checkboxStyle: CheckboxToggleStyle {
+extension ToggleStyle where Self == CheckboxToggleStyle {
+  fileprivate static var checkboxStyle: CheckboxToggleStyle {
     CheckboxToggleStyle()
   }
 }

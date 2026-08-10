@@ -55,9 +55,10 @@ struct StressTests {
     let catalog = BasicCatalog.v091Catalog
     let processor = MessageProcessor(catalogs: [catalog.id: catalog])
 
-    try processor.process(line: """
-      {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)"}}
-      """)
+    try processor.process(
+      line: """
+        {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)"}}
+        """)
 
     var componentsJSON = "["
     for i in 0..<100 {
@@ -71,9 +72,10 @@ struct StressTests {
       ]
       """
 
-    try processor.process(line: """
-      {"version": "v0.9.1", "updateComponents": {"surfaceId": "s1", "components": \(componentsJSON)}}
-      """)
+    try processor.process(
+      line: """
+        {"version": "v0.9.1", "updateComponents": {"surfaceId": "s1", "components": \(componentsJSON)}}
+        """)
 
     let vm = processor.getSurface(id: "s1")
     let root = vm?.rootNode
@@ -106,16 +108,18 @@ struct StressTests {
     let catalog = BasicCatalog.v091Catalog
     let processor = MessageProcessor(catalogs: [catalog.id: catalog])
 
-    try processor.process(line: """
-      {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)"}}
-      """)
+    try processor.process(
+      line: """
+        {"version": "v0.9.1", "createSurface": {"surfaceId": "s1", "catalogId": "\(catalog.id)"}}
+        """)
 
     for i in 0..<100 {
-      try processor.process(line: """
-        {"version": "v0.9.1", "updateComponents": {"surfaceId": "s1", "components": [
-          {"id": "root", "component": "Text", "text": "Update \(i)"}
-        ]}}
-        """)
+      try processor.process(
+        line: """
+          {"version": "v0.9.1", "updateComponents": {"surfaceId": "s1", "components": [
+            {"id": "root", "component": "Text", "text": "Update \(i)"}
+          ]}}
+          """)
     }
 
     let vm = processor.getSurface(id: "s1")

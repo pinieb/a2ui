@@ -33,21 +33,29 @@ final class A2UISampleClientUITests: XCTestCase {
       }
 
       // Select "Formatted Text" from gallery list
-      let formattedTextCell = app.buttons["Formatted Text"].exists ? app.buttons["Formatted Text"] : app.staticTexts["Formatted Text"]
-      XCTAssertTrue(formattedTextCell.waitForExistence(timeout: 5), "Formatted Text sample should be in list")
+      let formattedTextCell =
+        app.buttons["Formatted Text"].exists
+        ? app.buttons["Formatted Text"] : app.staticTexts["Formatted Text"]
+      XCTAssertTrue(
+        formattedTextCell.waitForExistence(timeout: 5), "Formatted Text sample should be in list")
       formattedTextCell.tap()
     }
 
     // 2. Advance all steps (Step 1: createSurface, Step 2: updateComponents)
     let advanceButton = app.buttons["Advance"]
-    XCTAssertTrue(advanceButton.waitForExistence(timeout: 5), "Advance button should exist on detail view")
-    advanceButton.tap() // Step 1 of 2
+    XCTAssertTrue(
+      advanceButton.waitForExistence(timeout: 5), "Advance button should exist on detail view")
+    advanceButton.tap()  // Step 1 of 2
 
-    XCTAssertTrue(advanceButton.waitForExistence(timeout: 5) && advanceButton.isEnabled, "Advance button should be enabled for step 2")
-    advanceButton.tap() // Step 2 of 2
+    XCTAssertTrue(
+      advanceButton.waitForExistence(timeout: 5) && advanceButton.isEnabled,
+      "Advance button should be enabled for step 2")
+    advanceButton.tap()  // Step 2 of 2
 
     // 3. Find the text field
-    let textField = app.textFields["Type something:"].exists ? app.textFields["Type something:"] : app.textFields.firstMatch
+    let textField =
+      app.textFields["Type something:"].exists
+      ? app.textFields["Type something:"] : app.textFields.firstMatch
     XCTAssertTrue(textField.waitForExistence(timeout: 5), "TextField should be visible on Step 2")
 
     // 4. Type text into the text field

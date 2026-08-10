@@ -31,9 +31,9 @@ public struct A2UIIcon: View {
     if let str = node.properties["name"] as? String {
       return str
     }
-    if let json = node.properties["name"] as? JSONValue {
-      if let str = json.stringValue { return str }
-      if let svgPath = json["svgPath"]?.stringValue { return "svg:\(svgPath)" }
+    if let json = node.properties["name"] as? JSONValue,
+      let svgPath = json["svgPath"] as? DataBinding<String> {
+      return svgPath.get()
     }
     return ""
   }

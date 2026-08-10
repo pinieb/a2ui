@@ -105,7 +105,7 @@ public struct A2UIImage: View {
         .frame(height: 200)
         .clipped()
 
-    default: // mediumFeature
+    default:  // mediumFeature
       resizable
         .aspectRatio(contentMode: contentMode)
         .frame(maxWidth: 300)

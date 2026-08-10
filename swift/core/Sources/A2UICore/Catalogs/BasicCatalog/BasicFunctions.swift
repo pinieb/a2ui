@@ -18,9 +18,9 @@ import OrderedCollections
 import OrderedJSON
 
 #if canImport(UIKit)
-import UIKit
+  import UIKit
 #elseif canImport(AppKit)
-import AppKit
+  import AppKit
 #endif
 
 // MARK: - Required Function
@@ -242,62 +242,180 @@ public struct FormatStringFunction: FunctionImplementation, Sendable {
       return .string("")
     }
 
+    let parser = ExpressionParser()
+    let parts: [JSONValue]
+    do {
+      parts = try parser.parse(template)
+    } catch {
+      return .string(template)
+    }
+
+    if parts.isEmpty {
+      return .string("")
+    }
+
     let dataContext = arguments["__data__"]
     let basePath = arguments["__basePath__"]?.stringValue
+    let availableFunctions = BasicFunctions.standardFunctionsMap
 
-    // Handle template interpolation: ${path} or literal parts
     var result = ""
-    var index = template.startIndex
-
-    while index < template.endIndex {
-      if template[index...].hasPrefix("\\${") {
-        result.append("${")
-        index = template.index(index, offsetBy: 3)
-      } else if template[index...].hasPrefix("${") {
-        let exprStart = template.index(index, offsetBy: 2)
-        if let exprEnd = template[exprStart...].firstIndex(of: "}") {
-          let rawExpr = String(template[exprStart..<exprEnd]).trimmingCharacters(in: .whitespaces)
-          var cleanExpr = rawExpr
-          while cleanExpr.hasPrefix("\\") {
-            cleanExpr = String(cleanExpr.dropFirst())
-          }
-          cleanExpr = cleanExpr.replacingOccurrences(of: "\\/", with: "/")
-
-          // 1. Quoted literals
-          if (cleanExpr.hasPrefix("'") && cleanExpr.hasSuffix("'")) || (cleanExpr.hasPrefix("\"") && cleanExpr.hasSuffix("\"")) {
-            result.append(String(cleanExpr.dropFirst().dropLast()))
-          } else if cleanExpr == "null" {
-            // null resolves to empty string
-          } else if cleanExpr == "true" {
-            result.append("true")
-          } else if cleanExpr == "false" {
-            result.append("false")
-          } else if let argVal = arguments[cleanExpr] ?? arguments[rawExpr] {
-            // 2. Direct named argument in function args
-            result.append(coerceToString(argVal))
-          } else if let data = dataContext {
-            // 3. Data model path (e.g. /inputValue or relative path)
-            let absPath = JSONValue.absolutePath(for: cleanExpr, in: basePath)
-            if let dataVal = data[absPath] {
-              result.append(coerceToString(dataVal))
-            } else if let dataVal = data[cleanExpr] {
-              result.append(coerceToString(dataVal))
-            } else if let dataVal = data[rawExpr] {
-              result.append(coerceToString(dataVal))
-            }
-          }
-          index = template.index(after: exprEnd)
-        } else {
-          result.append("${")
-          index = template.index(index, offsetBy: 2)
-        }
-      } else {
-        result.append(template[index])
-        index = template.index(after: index)
-      }
+    for part in parts {
+      result.append(
+        evaluatePart(
+          part,
+          data: dataContext,
+          basePath: basePath,
+          arguments: arguments,
+          functions: availableFunctions
+        )
+      )
     }
 
     return .string(result)
+  }
+
+  private func evaluatePart(
+    _ part: JSONValue,
+    data: JSONValue?,
+    basePath: String?,
+    arguments: [String: JSONValue],
+    functions: [String: any FunctionImplementation]
+  ) -> String {
+    switch part {
+    case .string(let s):
+      return s
+    case .integer(let i):
+      return String(i)
+    case .number(let n):
+      return n.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(n)) : String(n)
+    case .boolean(let b):
+      return String(b)
+    case .null:
+      return ""
+    case .object(let dict):
+      if let pathStr = dict["path"]?.stringValue {
+        return resolvePath(
+          pathStr,
+          data: data,
+          basePath: basePath,
+          arguments: arguments
+        )
+      } else if let callName = dict["call"]?.stringValue {
+        return evaluateCall(
+          callName: callName,
+          argsObj: dict["args"]?.dictionaryValue,
+          data: data,
+          basePath: basePath,
+          arguments: arguments,
+          functions: functions
+        )
+      }
+      return coerceToString(part)
+    case .array:
+      return coerceToString(part)
+    }
+  }
+
+  private func resolvePath(
+    _ pathStr: String,
+    data: JSONValue?,
+    basePath: String?,
+    arguments: [String: JSONValue]
+  ) -> String {
+    var cleanPath = pathStr
+    while cleanPath.hasPrefix("\\") {
+      cleanPath = String(cleanPath.dropFirst())
+    }
+    cleanPath = cleanPath.replacingOccurrences(of: "\\/", with: "/")
+
+    if let argVal = arguments[cleanPath] ?? arguments[pathStr] {
+      return coerceToString(argVal)
+    }
+    if let data {
+      let absPath = JSONValue.absolutePath(for: cleanPath, in: basePath)
+      if let dataVal = data[absPath] ?? data[cleanPath] ?? data[pathStr] {
+        return coerceToString(dataVal)
+      }
+    }
+    return ""
+  }
+
+  private func evaluateCall(
+    callName: String,
+    argsObj: [String: JSONValue]?,
+    data: JSONValue?,
+    basePath: String?,
+    arguments: [String: JSONValue],
+    functions: [String: any FunctionImplementation]
+  ) -> String {
+    guard let function = functions[callName] else {
+      return ""
+    }
+    var resolvedArgs: [String: JSONValue] = [:]
+    if let argsObj {
+      for (argKey, argVal) in argsObj {
+        resolvedArgs[argKey] = evaluateArgValue(
+          argVal,
+          data: data,
+          basePath: basePath,
+          arguments: arguments,
+          functions: functions
+        )
+      }
+    }
+    if let data {
+      resolvedArgs["__data__"] = data
+    }
+    if let basePath {
+      resolvedArgs["__basePath__"] = .string(basePath)
+    }
+    if let result = try? function.evaluate(arguments: resolvedArgs) {
+      return coerceToString(result)
+    }
+    return ""
+  }
+
+  private func evaluateArgValue(
+    _ argVal: JSONValue,
+    data: JSONValue?,
+    basePath: String?,
+    arguments: [String: JSONValue],
+    functions: [String: any FunctionImplementation]
+  ) -> JSONValue {
+    switch argVal {
+    case .object(let dict):
+      if let pathStr = dict["path"]?.stringValue {
+        var cleanPath = pathStr
+        while cleanPath.hasPrefix("\\") {
+          cleanPath = String(cleanPath.dropFirst())
+        }
+        cleanPath = cleanPath.replacingOccurrences(of: "\\/", with: "/")
+
+        if let val = arguments[cleanPath] ?? arguments[pathStr] {
+          return val
+        }
+        if let data {
+          let absPath = JSONValue.absolutePath(for: cleanPath, in: basePath)
+          if let val = data[absPath] ?? data[cleanPath] ?? data[pathStr] {
+            return val
+          }
+        }
+        return .null
+      } else if let callName = dict["call"]?.stringValue {
+        let str = evaluateCall(
+          callName: callName,
+          argsObj: dict["args"]?.dictionaryValue,
+          data: data,
+          basePath: basePath,
+          arguments: arguments,
+          functions: functions
+        )
+        return .string(str)
+      }
+      return argVal
+    default:
+      return argVal
+    }
   }
 
   private func coerceToString(_ value: JSONValue) -> String {
@@ -468,15 +586,20 @@ public struct FormatDateFunction: FunctionImplementation, Sendable {
       dateOnlyFormatter.locale = Locale(identifier: "en_US_POSIX")
       dateOnlyFormatter.dateFormat = "yyyy-MM-dd"
 
-      date = isoFull.date(from: dateStr)
+      date =
+        isoFull.date(from: dateStr)
         ?? isoStandard.date(from: dateStr)
         ?? isoDateOnly.date(from: dateStr)
         ?? dateOnlyFormatter.date(from: dateStr)
     case .number(let timestamp):
-      date = timestamp > 10_000_000_000 ? Date(timeIntervalSince1970: timestamp / 1000.0) : Date(timeIntervalSince1970: timestamp)
+      date =
+        timestamp > 10_000_000_000
+        ? Date(timeIntervalSince1970: timestamp / 1000.0) : Date(timeIntervalSince1970: timestamp)
     case .integer(let timestamp):
       let t = Double(timestamp)
-      date = t > 10_000_000_000 ? Date(timeIntervalSince1970: t / 1000.0) : Date(timeIntervalSince1970: t)
+      date =
+        t > 10_000_000_000
+        ? Date(timeIntervalSince1970: t / 1000.0) : Date(timeIntervalSince1970: t)
     default:
       date = nil
     }
@@ -580,13 +703,13 @@ public struct OpenUrlFunction: FunctionImplementation, Sendable {
     }
 
     #if canImport(UIKit)
-    DispatchQueue.main.async {
-      UIApplication.shared.open(url, options: [:], completionHandler: nil)
-    }
+      DispatchQueue.main.async {
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+      }
     #elseif canImport(AppKit)
-    DispatchQueue.main.async {
-      NSWorkspace.shared.open(url)
-    }
+      DispatchQueue.main.async {
+        NSWorkspace.shared.open(url)
+      }
     #endif
 
     return .null
@@ -871,5 +994,13 @@ public enum BasicFunctions: Sendable {
       EqualsFunction(),
       NotEqualsFunction(),
     ]
+  }
+
+  public static var standardFunctionsMap: [String: any FunctionImplementation] {
+    var dict: [String: any FunctionImplementation] = [:]
+    for fn in allFunctions {
+      dict[fn.api.name] = fn
+    }
+    return dict
   }
 }

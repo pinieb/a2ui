@@ -13,8 +13,9 @@
 // limitations under the License.
 
 /// Errors that occur during local function evaluation.
-public enum FunctionError: Error, Sendable {
+public enum FunctionError: Error, Sendable, Equatable {
   case functionNotFound(String)
   case missingArgument(String)
   case invalidArgumentType(expected: String, actual: String)
+  case executionFailed(name: String, message: String)
 }
