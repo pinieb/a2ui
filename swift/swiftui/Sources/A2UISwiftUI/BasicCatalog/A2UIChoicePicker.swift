@@ -34,46 +34,19 @@ public struct A2UIChoicePicker: View {
   }
 
   private var labelText: String {
-    if let binding = node.properties["label"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["label"] as? String {
-      return str
-    }
-    if let json = node.properties["label"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
   }
 
   private var variant: String {
-    if let v = node.properties["variant"] as? String {
-      return v
-    }
-    if let json = node.properties["variant"] as? JSONValue {
-      return json.stringValue ?? "mutuallyExclusive"
-    }
-    return "mutuallyExclusive"
+    node.properties["variant"] as? String ?? "mutuallyExclusive"
   }
 
   private var displayStyle: String {
-    if let d = node.properties["displayStyle"] as? String {
-      return d
-    }
-    if let json = node.properties["displayStyle"] as? JSONValue {
-      return json.stringValue ?? "checkbox"
-    }
-    return "checkbox"
+    node.properties["displayStyle"] as? String ?? "checkbox"
   }
 
   private var isFilterable: Bool {
-    if let b = node.properties["filterable"] as? Bool {
-      return b
-    }
-    if let json = node.properties["filterable"] as? JSONValue {
-      return json.boolValue ?? false
-    }
-    return false
+    node.properties["filterable"] as? Bool ?? false
   }
 
   private var options: [OptionItem] {
@@ -95,16 +68,7 @@ public struct A2UIChoicePicker: View {
   }
 
   private var selectedValues: [String] {
-    if let binding = node.properties["value"] as? DataBinding<[String]> {
-      return binding.get()
-    }
-    if let binding = node.properties["value"] as? DataBinding<JSONValue> {
-      return binding.get().arrayValue?.compactMap { $0.stringValue } ?? []
-    }
-    if let json = node.properties["value"] as? JSONValue, let arr = json.arrayValue {
-      return arr.compactMap { $0.stringValue }
-    }
-    return fallbackSelections
+    (node.properties["value"] as? DataBinding<[String]>)?.get() ?? fallbackSelections
   }
 
   private func toggleSelection(_ optionVal: String) {
@@ -121,8 +85,6 @@ public struct A2UIChoicePicker: View {
 
     if let binding = node.properties["value"] as? DataBinding<[String]> {
       binding.set(current)
-    } else if let binding = node.properties["value"] as? DataBinding<JSONValue> {
-      binding.set(.array(current.map { .string($0) }))
     } else {
       fallbackSelections = current
     }

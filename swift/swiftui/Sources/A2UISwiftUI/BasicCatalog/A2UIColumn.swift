@@ -25,30 +25,15 @@ public struct A2UIColumn: View {
   }
 
   private var children: [Node] {
-    if let nodes = node.properties["children"] as? [Node] {
-      return nodes
-    }
-    return []
+    (node.properties["children"] as? [Node]) ?? []
   }
 
   private var align: String {
-    if let a = node.properties["align"] as? String {
-      return a
-    }
-    if let json = node.properties["align"] as? JSONValue {
-      return json.stringValue ?? "stretch"
-    }
-    return "stretch"
+    node.properties["align"] as? String ?? "stretch"
   }
 
   private var justify: String {
-    if let j = node.properties["justify"] as? String {
-      return j
-    }
-    if let json = node.properties["justify"] as? JSONValue {
-      return json.stringValue ?? "start"
-    }
-    return "start"
+    node.properties["justify"] as? String ?? "start"
   }
 
   public var body: some View {

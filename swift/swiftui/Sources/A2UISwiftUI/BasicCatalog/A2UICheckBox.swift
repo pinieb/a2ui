@@ -27,16 +27,7 @@ public struct A2UICheckBox: View {
   }
 
   private var labelText: String {
-    if let binding = node.properties["label"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["label"] as? String {
-      return str
-    }
-    if let json = node.properties["label"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
   }
 
   private var boolBinding: Binding<Bool> {

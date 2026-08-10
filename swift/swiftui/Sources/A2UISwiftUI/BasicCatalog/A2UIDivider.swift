@@ -25,13 +25,7 @@ public struct A2UIDivider: View {
   }
 
   private var axis: String {
-    if let a = node.properties["axis"] as? String {
-      return a
-    }
-    if let json = node.properties["axis"] as? JSONValue {
-      return json.stringValue ?? "horizontal"
-    }
-    return "horizontal"
+    node.properties["axis"] as? String ?? "horizontal"
   }
 
   public var body: some View {

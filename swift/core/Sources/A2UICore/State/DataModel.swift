@@ -22,28 +22,19 @@ import OrderedJSON
 /// Mirrors `DataModel` in the core blueprint and `web_core`. The path
 /// subscripting logic delegates to `JSONValue`'s existing path utilities
 /// in ``JSONValue+Path``.
-public final class DataModel: @unchecked Sendable, ObservableObject {
+@MainActor
+public final class DataModel: ObservableObject {
 
-  private let lock = NSRecursiveLock()
-
-  public private(set) var data: JSONValue = .object([:]) {
-    didSet {
-      dataSubject.send(data)
-    }
-  }
-
-  private let dataSubject: CurrentValueSubject<JSONValue, Never>
+  @Published public private(set) var data: JSONValue = .object([:])
 
   /// Publisher emitting the updated data value after every mutation.
   public var dataPublisher: AnyPublisher<JSONValue, Never> {
-    dataSubject.eraseToAnyPublisher()
+    $data.eraseToAnyPublisher()
   }
 
   /// Creates an empty data model.
   public init() {
-    let initial: JSONValue = .object([:])
-    self.data = initial
-    self.dataSubject = CurrentValueSubject(initial)
+    self.data = .object([:])
   }
 
   /// Creates a data model with an initial value.
@@ -51,7 +42,6 @@ public final class DataModel: @unchecked Sendable, ObservableObject {
   /// - Parameter initial: The initial JSON value for the root.
   public init(initial: JSONValue) {
     self.data = initial
-    self.dataSubject = CurrentValueSubject(initial)
   }
 
   /// Resolves a JSON Pointer path to a value.
@@ -59,7 +49,7 @@ public final class DataModel: @unchecked Sendable, ObservableObject {
   /// - Parameter path: The path (e.g., `/user/name`).
   /// - Returns: The value at the path, or `nil` if not found.
   public func get(_ path: String) -> JSONValue? {
-    lock.withLock { data[path] }
+    data[path]
   }
 
   /// Sets a value at the given JSON Pointer path.
@@ -70,8 +60,6 @@ public final class DataModel: @unchecked Sendable, ObservableObject {
   ///   - path: The path (e.g., `/user/name`).
   ///   - value: The value to set, or `nil` to remove.
   public func set(_ path: String, value: JSONValue?) {
-    lock.withLock {
-      data[path] = value
-    }
+    data[path] = value
   }
 }

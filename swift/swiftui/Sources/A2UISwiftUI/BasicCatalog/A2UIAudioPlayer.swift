@@ -29,29 +29,11 @@ public struct A2UIAudioPlayer: View {
   }
 
   private var urlString: String {
-    if let binding = node.properties["url"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["url"] as? String {
-      return str
-    }
-    if let json = node.properties["url"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["url"] as? DataBinding<String>)?.get() ?? ""
   }
 
   private var descriptionText: String {
-    if let binding = node.properties["description"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["description"] as? String {
-      return str
-    }
-    if let json = node.properties["description"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["description"] as? DataBinding<String>)?.get() ?? ""
   }
 
   public var body: some View {

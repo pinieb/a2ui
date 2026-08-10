@@ -27,36 +27,15 @@ public struct A2UIDateTimeInput: View {
   }
 
   private var labelText: String {
-    if let binding = node.properties["label"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["label"] as? String {
-      return str
-    }
-    if let json = node.properties["label"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
   }
 
   private var enableDate: Bool {
-    if let b = node.properties["enableDate"] as? Bool {
-      return b
-    }
-    if let json = node.properties["enableDate"] as? JSONValue {
-      return json.boolValue ?? false
-    }
-    return false
+    node.properties["enableDate"] as? Bool ?? false
   }
 
   private var enableTime: Bool {
-    if let b = node.properties["enableTime"] as? Bool {
-      return b
-    }
-    if let json = node.properties["enableTime"] as? JSONValue {
-      return json.boolValue ?? false
-    }
-    return false
+    node.properties["enableTime"] as? Bool ?? false
   }
 
   private var displayedComponents: DatePickerComponents {

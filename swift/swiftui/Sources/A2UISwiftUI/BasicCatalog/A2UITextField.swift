@@ -27,26 +27,11 @@ public struct A2UITextField: View {
   }
 
   private var labelText: String {
-    if let binding = node.properties["label"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["label"] as? String {
-      return str
-    }
-    if let json = node.properties["label"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
   }
 
   private var variant: String {
-    if let v = node.properties["variant"] as? String {
-      return v
-    }
-    if let json = node.properties["variant"] as? JSONValue {
-      return json.stringValue ?? "shortText"
-    }
-    return "shortText"
+    node.properties["variant"] as? String ?? "shortText"
   }
 
   private var valueBinding: Binding<String> {

@@ -25,19 +25,20 @@ public struct ResolvedAction: Sendable {
   /// The identity of this resolved action.
   public let identity: Identity
 
-  private let triggerClosure: @Sendable () -> Void
+  private let triggerClosure: @MainActor @Sendable () -> Void
 
   /// Creates a new resolved action with the specified identity and
   /// trigger closure.
   public init(
     identity: Identity,
-    trigger: @escaping @Sendable () -> Void
+    trigger: @escaping @MainActor @Sendable () -> Void
   ) {
     self.identity = identity
     self.triggerClosure = trigger
   }
 
   /// Triggers the action using function-call syntax.
+  @MainActor
   public func callAsFunction() {
     triggerClosure()
   }

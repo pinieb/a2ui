@@ -25,26 +25,11 @@ public struct A2UIText: View {
   }
 
   private var textContent: String {
-    if let binding = node.properties["text"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["text"] as? String {
-      return str
-    }
-    if let json = node.properties["text"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["text"] as? DataBinding<String>)?.get() ?? ""
   }
 
   private var variant: String {
-    if let v = node.properties["variant"] as? String {
-      return v
-    }
-    if let json = node.properties["variant"] as? JSONValue {
-      return json.stringValue ?? "body"
-    }
-    return "body"
+    node.properties["variant"] as? String ?? "body"
   }
 
   public var body: some View {

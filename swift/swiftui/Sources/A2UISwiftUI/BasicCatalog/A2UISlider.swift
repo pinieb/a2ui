@@ -27,36 +27,15 @@ public struct A2UISlider: View {
   }
 
   private var labelText: String {
-    if let binding = node.properties["label"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["label"] as? String {
-      return str
-    }
-    if let json = node.properties["label"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
   }
 
   private var minValue: Double {
-    if let m = node.properties["min"] as? Double {
-      return m
-    }
-    if let json = node.properties["min"] as? JSONValue {
-      return json.doubleValue ?? 0
-    }
-    return 0
+    node.properties["min"] as? Double ?? 0
   }
 
   private var maxValue: Double {
-    if let m = node.properties["max"] as? Double {
-      return m
-    }
-    if let json = node.properties["max"] as? JSONValue {
-      return json.doubleValue ?? 100
-    }
-    return 100
+    node.properties["max"] as? Double ?? 100
   }
 
   private var sliderBinding: Binding<Double> {

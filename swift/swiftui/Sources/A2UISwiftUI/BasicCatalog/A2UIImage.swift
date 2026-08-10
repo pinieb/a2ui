@@ -25,49 +25,19 @@ public struct A2UIImage: View {
   }
 
   private var urlString: String {
-    if let binding = node.properties["url"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["url"] as? String {
-      return str
-    }
-    if let json = node.properties["url"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["url"] as? DataBinding<String>)?.get() ?? ""
   }
 
   private var imageDescription: String {
-    if let binding = node.properties["description"] as? DataBinding<String> {
-      return binding.get()
-    }
-    if let str = node.properties["description"] as? String {
-      return str
-    }
-    if let json = node.properties["description"] as? JSONValue {
-      return json.stringValue ?? ""
-    }
-    return ""
+    (node.properties["description"] as? DataBinding<String>)?.get() ?? ""
   }
 
   private var fit: String {
-    if let f = node.properties["fit"] as? String {
-      return f
-    }
-    if let json = node.properties["fit"] as? JSONValue {
-      return json.stringValue ?? "fill"
-    }
-    return "fill"
+    node.properties["fit"] as? String ?? "fill"
   }
 
   private var variant: String {
-    if let v = node.properties["variant"] as? String {
-      return v
-    }
-    if let json = node.properties["variant"] as? JSONValue {
-      return json.stringValue ?? "mediumFeature"
-    }
-    return "mediumFeature"
+    node.properties["variant"] as? String ?? "mediumFeature"
   }
 
   public var body: some View {

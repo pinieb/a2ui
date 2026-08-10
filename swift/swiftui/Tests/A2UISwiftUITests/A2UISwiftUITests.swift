@@ -94,6 +94,7 @@ struct SurfaceTests {
 
 // MARK: - DataBinding+SwiftUI Tests
 
+@MainActor
 struct DataBindingSwiftUITests {
 
   @Test func swiftUIBindingGetsValue() {

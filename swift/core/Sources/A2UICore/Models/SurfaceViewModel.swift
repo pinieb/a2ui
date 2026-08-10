@@ -27,7 +27,8 @@ import OrderedJSON
 /// `SurfaceViewModel` also hosts the tree resolution logic (dynamic value
 /// evaluation, action resolution, child list expansion) that will
 /// eventually move to a dedicated Binder/Context layer (Phase 4).
-public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
+@MainActor
+public final class SurfaceViewModel: ObservableObject {
 
   // MARK: - Properties
 
@@ -343,7 +344,18 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
         data: data
       )
     case .standard:
-      return value
+      switch value {
+      case .string(let str):
+        return str
+      case .number(let num):
+        return num
+      case .integer(let intVal):
+        return Double(intVal)
+      case .boolean(let bool):
+        return bool
+      case .null, .object, .array:
+        return value
+      }
     }
   }
 

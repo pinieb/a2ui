@@ -32,15 +32,16 @@ public struct DataBinding<Value: Sendable>: Sendable {
   /// The snapshot value of this binding at the time it was resolved.
   public let currentValue: Value
 
-  private let getter: @Sendable () -> Value
-  private let setter: @Sendable (Value) -> Void
+  private let getter: @MainActor @Sendable () -> Value
+  private let setter: @MainActor @Sendable (Value) -> Void
 
   /// Creates a new data binding with the specified identity, getter,
   /// and setter, snapshotting the current value immediately.
+  @MainActor
   public init(
     identity: Identity,
-    get: @escaping @Sendable () -> Value,
-    set: @escaping @Sendable (Value) -> Void
+    get: @escaping @MainActor @Sendable () -> Value,
+    set: @escaping @MainActor @Sendable (Value) -> Void
   ) {
     self.identity = identity
     self.currentValue = get()
@@ -53,8 +54,8 @@ public struct DataBinding<Value: Sendable>: Sendable {
   public init(
     identity: Identity,
     value: Value,
-    get: @escaping @Sendable () -> Value,
-    set: @escaping @Sendable (Value) -> Void
+    get: @escaping @MainActor @Sendable () -> Value,
+    set: @escaping @MainActor @Sendable (Value) -> Void
   ) {
     self.identity = identity
     self.currentValue = value
@@ -63,11 +64,13 @@ public struct DataBinding<Value: Sendable>: Sendable {
   }
 
   /// Retrieves the current bound value.
+  @MainActor
   public func get() -> Value {
     getter()
   }
 
   /// Updates the bound value.
+  @MainActor
   public func set(_ value: Value) {
     setter(value)
   }

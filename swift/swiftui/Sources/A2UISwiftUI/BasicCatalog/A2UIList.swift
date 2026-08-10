@@ -25,20 +25,11 @@ public struct A2UIList: View {
   }
 
   private var children: [Node] {
-    if let nodes = node.properties["children"] as? [Node] {
-      return nodes
-    }
-    return []
+    (node.properties["children"] as? [Node]) ?? []
   }
 
   private var direction: String {
-    if let d = node.properties["direction"] as? String {
-      return d
-    }
-    if let json = node.properties["direction"] as? JSONValue {
-      return json.stringValue ?? "vertical"
-    }
-    return "vertical"
+    node.properties["direction"] as? String ?? "vertical"
   }
 
   public var body: some View {

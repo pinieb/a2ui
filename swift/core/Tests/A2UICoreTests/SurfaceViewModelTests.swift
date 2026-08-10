@@ -566,6 +566,7 @@ struct SurfaceComponentsModelTests {
 
 // MARK: - DataModel Tests
 
+@MainActor
 struct DataModelTests {
 
   @Test func startsEmpty() {

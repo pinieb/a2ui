@@ -31,13 +31,7 @@ public struct A2UIButton: View {
   }
 
   private var variant: String {
-    if let v = node.properties["variant"] as? String {
-      return v
-    }
-    if let json = node.properties["variant"] as? JSONValue {
-      return json.stringValue ?? "default"
-    }
-    return "default"
+    node.properties["variant"] as? String ?? "default"
   }
 
   private var action: ResolvedAction? {
