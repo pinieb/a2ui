@@ -214,4 +214,72 @@ struct IntegrationTests {
     inputBinding.set("Final Check 123")
     #expect(resultBinding.get() == "You typed: Final Check 123")
   }
+
+  @MainActor
+  @Test func testChildListTemplateExpansionSurfaceRendering() throws {
+    let processor = MessageProcessor(catalogs: BasicCatalog.allCatalogs)
+    let catalogImpl = CatalogImplementation.basic()
+
+    try processor.process(line: """
+      {"version": "v0.9", "createSurface": {"surfaceId": "gallery-child-list-template", "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json", "sendDataModel": true}}
+      """)
+    try processor.process(line: """
+      {"version": "v0.9", "updateComponents": {"surfaceId": "gallery-child-list-template", "components": [
+        {"id": "root", "component": "Card", "child": "main-column"},
+        {"id": "main-column", "component": "Column", "children": ["title-text", "item-list"], "align": "stretch"},
+        {"id": "title-text", "component": "Text", "text": "Dynamic Item List", "variant": "h3"},
+        {"id": "item-list", "component": "List", "children": {"componentId": "item-row", "path": "/items"}},
+        {"id": "item-row", "component": "Row", "children": ["item-name", "qty-label", "item-qty"]},
+        {"id": "item-name", "component": "Text", "text": {"path": "name"}},
+        {"id": "qty-label", "component": "Text", "text": " - Qty: "},
+        {"id": "item-qty", "component": "Text", "text": {"path": "quantity"}}
+      ]}}
+      """)
+    try processor.process(line: """
+      {"version": "v0.9", "updateDataModel": {"surfaceId": "gallery-child-list-template", "value": {
+        "items": [
+          {"name": "Apple", "quantity": 10},
+          {"name": "Banana", "quantity": 5},
+          {"name": "Cherry", "quantity": 20}
+        ]
+      }}}
+      """)
+
+    guard let surfaceVM = processor.getSurface(id: "gallery-child-list-template") else {
+      Issue.record("Surface not found")
+      return
+    }
+
+    let surfaceView = Surface(viewModel: surfaceVM, catalogImplementation: catalogImpl)
+    #expect(surfaceView != nil)
+
+    guard let root = surfaceVM.rootNode,
+          let cardChild = root.properties["child"] as? Node,
+          let colChildren = cardChild.properties["children"] as? [Node],
+          let listNode = colChildren.first(where: { $0.id == "item-list" }),
+          let listChildren = listNode.properties["children"] as? [Node] else {
+      Issue.record("Failed to resolve list node tree")
+      return
+    }
+
+    #expect(listChildren.count == 3)
+
+    let itemsExpected: [(String, String)] = [
+      ("Apple", "10"),
+      ("Banana", "5"),
+      ("Cherry", "20"),
+    ]
+
+    for (index, expected) in itemsExpected.enumerated() {
+      let row = listChildren[index]
+      guard let rowChildren = row.properties["children"] as? [Node],
+            let name = (rowChildren.first(where: { $0.id == "item-name" })?.properties["text"] as? DataBinding<String>)?.get(),
+            let qty = (rowChildren.first(where: { $0.id == "item-qty" })?.properties["text"] as? DataBinding<String>)?.get() else {
+        Issue.record("Failed to read row \(index) children")
+        continue
+      }
+      #expect(name == expected.0)
+      #expect(qty == expected.1)
+    }
+  }
 }

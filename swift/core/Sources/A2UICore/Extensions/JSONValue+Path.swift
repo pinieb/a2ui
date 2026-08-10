@@ -16,11 +16,20 @@ import OrderedCollections
 import OrderedJSON
 
 extension JSONValue {
-  /// Returns the underlying string value if this is a `.string` case.
+  /// Returns the underlying string value if this is a `.string` case, or
+  /// converts numeric, integer, and boolean values to their string representations.
   public var stringValue: String? {
     switch self {
-    case .string(let value): return value
-    default: return nil
+    case .string(let value):
+      return value
+    case .integer(let value):
+      return String(value)
+    case .number(let value):
+      return value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(value)
+    case .boolean(let value):
+      return String(value)
+    case .null, .array, .object:
+      return nil
     }
   }
 

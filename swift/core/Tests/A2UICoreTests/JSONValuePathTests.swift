@@ -25,9 +25,19 @@ struct JSONValuePathTests {
     #expect(value.stringValue == "hello")
   }
 
-  @Test func stringValueReturnsNilForNonString() {
-    let value: JSONValue = 42
-    #expect(value.stringValue == nil)
+  @Test func stringValueCoercesPrimitives() {
+    #expect(JSONValue.string("hello").stringValue == "hello")
+    #expect(JSONValue.integer(42).stringValue == "42")
+    #expect(JSONValue.number(10.0).stringValue == "10")
+    #expect(JSONValue.number(3.14).stringValue == "3.14")
+    #expect(JSONValue.boolean(true).stringValue == "true")
+    #expect(JSONValue.boolean(false).stringValue == "false")
+  }
+
+  @Test func stringValueReturnsNilForNullAndContainers() {
+    #expect(JSONValue.null.stringValue == nil)
+    #expect(JSONValue.array([]).stringValue == nil)
+    #expect(JSONValue.object([:]).stringValue == nil)
   }
 
   @Test func doubleValueReturnsDoubleFromNumber() {
