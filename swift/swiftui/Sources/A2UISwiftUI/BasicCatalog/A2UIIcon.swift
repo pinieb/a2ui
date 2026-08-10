@@ -28,6 +28,9 @@ public struct A2UIIcon: View {
     if let binding = node.properties["name"] as? DataBinding<String> {
       return binding.get()
     }
+    if let str = node.properties["name"] as? String {
+      return str
+    }
     if let json = node.properties["name"] as? JSONValue {
       if let str = json.stringValue { return str }
       if let svgPath = json["svgPath"]?.stringValue { return "svg:\(svgPath)" }

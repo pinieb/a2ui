@@ -184,7 +184,8 @@ public final class SurfaceViewModel: ObservableObject {
       case "DynamicValue": return .dynamicValue
       case "Action": return .action
       case "ChildList": return .childList
-      case "ComponentId": return .componentId
+      case "ComponentId", "Child": return .componentId
+      case "DataBinding": return .dynamicString
       default: break
       }
     }
@@ -447,19 +448,28 @@ public final class SurfaceViewModel: ObservableObject {
     basePath: String?,
     data: JSONValue
   ) -> DataBinding<String> {
-    if let dict = value.dictionaryValue, let pathStr = dict["path"]?.stringValue {
-      let absPath = JSONValue.absolutePath(for: pathStr, in: basePath)
-      let initialVal = data[absPath]?.stringValue ?? ""
-      return DataBinding<String>(
-        identity: .path(absPath),
-        value: initialVal,
-        get: { [weak self] in
-          self?.dataModel.get(absPath)?.stringValue ?? ""
-        },
-        set: { [weak self] newValue in
-          self?.dataModel.set(absPath, value: .string(newValue))
-        }
-      )
+    if let dict = value.dictionaryValue {
+      if let pathStr = dict["path"]?.stringValue {
+        let absPath = JSONValue.absolutePath(for: pathStr, in: basePath)
+        let initialVal = data[absPath]?.stringValue ?? ""
+        return DataBinding<String>(
+          identity: .path(absPath),
+          value: initialVal,
+          get: { [weak self] in
+            self?.dataModel.get(absPath)?.stringValue ?? ""
+          },
+          set: { [weak self] newValue in
+            self?.dataModel.set(absPath, value: .string(newValue))
+          }
+        )
+      } else if let svgPath = dict["svgPath"]?.stringValue {
+        return DataBinding<String>(
+          identity: .literal(value),
+          value: "svg:\(svgPath)",
+          get: { "svg:\(svgPath)" },
+          set: { _ in }
+        )
+      }
     }
     let initialVal = evaluateDynamicValue(value, basePath: basePath, data: data).stringValue ?? ""
     return DataBinding<String>(

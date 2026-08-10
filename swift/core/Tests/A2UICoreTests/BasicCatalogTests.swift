@@ -226,4 +226,103 @@ struct BasicCatalogTests {
     #expect(name2 == "Cherry")
     #expect(qty2 == "20")
   }
+
+  @MainActor
+  @Test func musicPlayerExampleRendersIconsWithBoundAndLiteralNames() throws {
+    let processor = MessageProcessor(catalogs: BasicCatalog.allCatalogs)
+    try processor.process(line: """
+      {"version": "v0.9", "createSurface": {"surfaceId": "gallery-music-player", "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json", "sendDataModel": true}}
+      """)
+    try processor.process(line: """
+      {"version": "v0.9", "updateComponents": {"surfaceId": "gallery-music-player", "components": [
+        {"id": "root", "component": "Card", "child": "main-column"},
+        {"id": "main-column", "component": "Column", "children": ["controls"], "align": "center"},
+        {"id": "controls", "component": "Row", "children": ["prev-btn", "play-btn", "next-btn"], "justify": "center"},
+        {"id": "prev-btn-icon", "component": "Icon", "name": "skipPrevious"},
+        {"id": "prev-btn", "component": "Button", "child": "prev-btn-icon", "action": {"event": {"name": "previous"}}},
+        {"id": "play-btn-icon", "component": "Icon", "name": {"path": "/playIcon"}},
+        {"id": "play-btn", "component": "Button", "child": "play-btn-icon", "action": {"event": {"name": "playPause"}}},
+        {"id": "next-btn-icon", "component": "Icon", "name": "skipNext"},
+        {"id": "next-btn", "component": "Button", "child": "next-btn-icon", "action": {"event": {"name": "next"}}}
+      ]}}
+      """)
+    try processor.process(line: """
+      {"version": "v0.9", "updateDataModel": {"surfaceId": "gallery-music-player", "value": {
+        "playIcon": "pause"
+      }}}
+      """)
+
+    guard let surface = processor.getSurface(id: "gallery-music-player") else {
+      Issue.record("Surface not found")
+      return
+    }
+
+    let root = surface.rootNode
+    guard let cardChild = root?.properties["child"] as? Node,
+          let colChildren = cardChild.properties["children"] as? [Node],
+          let controlsRow = colChildren.first(where: { $0.id == "controls" }),
+          let buttons = controlsRow.properties["children"] as? [Node] else {
+      Issue.record("Failed to resolve music player controls")
+      return
+    }
+
+    #expect(buttons.count == 3)
+
+    // Check prev-btn-icon (literal "skipPrevious")
+    guard let prevBtn = buttons.first(where: { $0.id == "prev-btn" }),
+          let prevIconNode = prevBtn.properties["child"] as? Node else {
+      Issue.record("prev-btn icon node not found")
+      return
+    }
+    let prevName = (prevIconNode.properties["name"] as? DataBinding<String>)?.get()
+      ?? (prevIconNode.properties["name"] as? String)
+    #expect(prevName == "skipPrevious")
+
+    // Check play-btn-icon (data-bound "/playIcon" -> "pause")
+    guard let playBtn = buttons.first(where: { $0.id == "play-btn" }),
+          let playIconNode = playBtn.properties["child"] as? Node,
+          let playBinding = playIconNode.properties["name"] as? DataBinding<String> else {
+      Issue.record("play-btn icon node or binding not found")
+      return
+    }
+    #expect(playBinding.get() == "pause")
+
+    // Live update playIcon in data model:
+    surface.dataModel.set("/playIcon", value: .string("play"))
+    #expect(playBinding.get() == "play")
+
+    // Check next-btn-icon (literal "skipNext")
+    guard let nextBtn = buttons.first(where: { $0.id == "next-btn" }),
+          let nextIconNode = nextBtn.properties["child"] as? Node else {
+      Issue.record("next-btn icon node not found")
+      return
+    }
+    let nextName = (nextIconNode.properties["name"] as? DataBinding<String>)?.get()
+      ?? (nextIconNode.properties["name"] as? String)
+    #expect(nextName == "skipNext")
+  }
+
+  @MainActor
+  @Test func iconComponentResolvesSvgPath() throws {
+    let processor = MessageProcessor(catalogs: BasicCatalog.allCatalogs)
+    try processor.process(line: """
+      {"version": "v0.9", "createSurface": {"surfaceId": "gallery-svg-icon", "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"}}
+      """)
+    try processor.process(line: """
+      {"version": "v0.9", "updateComponents": {"surfaceId": "gallery-svg-icon", "components": [
+        {"id": "root", "component": "Icon", "name": {"svgPath": "M10 20 L30 40"}}
+      ]}}
+      """)
+
+    guard let surface = processor.getSurface(id: "gallery-svg-icon"),
+          let root = surface.rootNode else {
+      Issue.record("Surface or root node not found")
+      return
+    }
+
+    let iconName = (root.properties["name"] as? DataBinding<String>)?.get()
+      ?? (root.properties["name"] as? String)
+    #expect(iconName == "svg:M10 20 L30 40")
+  }
 }
+
