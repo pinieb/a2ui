@@ -1,4 +1,4 @@
-// Copyright 2026 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,11 +26,46 @@ extension DataBinding {
   public var swiftUIBinding: Binding<Value> {
     Binding(
       get: {
-        self.get()
+        self.value
+      },
+      set: { newValue in
+        if let newValue {
+          self.set(newValue)
+        }
+      }
+    )
+  }
+
+  /// A SwiftUI `Binding` backed by this `DataBinding` with a fallback default value.
+  public func swiftUIBinding(default defaultValue: Value) -> Binding<Value> {
+    Binding(
+      get: {
+        self.value ?? defaultValue
       },
       set: { newValue in
         self.set(newValue)
       }
     )
+  }
+}
+
+extension DataBinding where Value == String {
+  /// A non-optional SwiftUI `Binding<String>` defaulting to empty string if `value` is nil.
+  public var stringBinding: Binding<String> {
+    swiftUIBinding(default: "")
+  }
+}
+
+extension DataBinding where Value == Bool {
+  /// A non-optional SwiftUI `Binding<Bool>` defaulting to false if `value` is nil.
+  public var boolBinding: Binding<Bool> {
+    swiftUIBinding(default: false)
+  }
+}
+
+extension DataBinding where Value == Double {
+  /// A non-optional SwiftUI `Binding<Double>` defaulting to 0.0 if `value` is nil.
+  public var doubleBinding: Binding<Double> {
+    swiftUIBinding(default: 0.0)
   }
 }

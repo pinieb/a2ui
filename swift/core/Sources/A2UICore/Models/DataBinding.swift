@@ -1,4 +1,4 @@
-// Copyright 2026 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,8 +17,9 @@ import OrderedJSON
 /// A thread-safe, generic two-way data binding.
 ///
 /// `DataBinding` connects a component property to a value in the data
-/// model via a JSON Pointer path, or wraps a literal value. It provides
-/// get/set closures for reading and writing the bound value.
+/// model via a JSON Pointer path, or wraps a literal value. It holds
+/// the resolved value at the time the node was resolved, and provides
+/// a `set` method for updating the underlying data model.
 public struct DataBinding<Value: Sendable>: Sendable {
   /// Defines the identity of the binding source for structural equality.
   public enum Identity: Equatable, Sendable {
@@ -29,48 +30,23 @@ public struct DataBinding<Value: Sendable>: Sendable {
   /// The unique identity of this binding.
   public let identity: Identity
 
-  /// The snapshot value of this binding at the time it was resolved.
-  public let currentValue: Value
+  /// The resolved value at the time the Node was resolved.
+  public let value: Value?
+  private let setter: @Sendable (Value) -> Void
 
-  private let getter: @MainActor @Sendable () -> Value
-  private let setter: @MainActor @Sendable (Value) -> Void
-
-  /// Creates a new data binding with the specified identity, getter,
-  /// and setter, snapshotting the current value immediately.
-  @MainActor
+  /// Creates a new data binding with the specified identity, resolved value,
+  /// and setter.
   public init(
     identity: Identity,
-    get: @escaping @MainActor @Sendable () -> Value,
-    set: @escaping @MainActor @Sendable (Value) -> Void
+    value: Value? = nil,
+    set: @escaping @Sendable (Value) -> Void = { _ in }
   ) {
     self.identity = identity
-    self.currentValue = get()
-    self.getter = get
+    self.value = value
     self.setter = set
-  }
-
-  /// Creates a new data binding with the specified identity, snapshot value,
-  /// getter, and setter.
-  public init(
-    identity: Identity,
-    value: Value,
-    get: @escaping @MainActor @Sendable () -> Value,
-    set: @escaping @MainActor @Sendable (Value) -> Void
-  ) {
-    self.identity = identity
-    self.currentValue = value
-    self.getter = get
-    self.setter = set
-  }
-
-  /// Retrieves the current bound value.
-  @MainActor
-  public func get() -> Value {
-    getter()
   }
 
   /// Updates the bound value.
-  @MainActor
   public func set(_ value: Value) {
     setter(value)
   }
@@ -78,7 +54,7 @@ public struct DataBinding<Value: Sendable>: Sendable {
 
 extension DataBinding: Equatable where Value: Equatable {
   public static func == (lhs: DataBinding<Value>, rhs: DataBinding<Value>) -> Bool {
-    lhs.identity == rhs.identity && lhs.currentValue == rhs.currentValue
+    lhs.identity == rhs.identity && lhs.value == rhs.value
   }
 }
 

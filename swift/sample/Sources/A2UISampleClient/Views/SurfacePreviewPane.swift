@@ -1,4 +1,4 @@
-// Copyright 2026 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ public struct SurfacePreviewPane: View {
       ScrollView {
         VStack(spacing: 16) {
           if let surfaceVM = viewModel.activeSurfaceViewModel {
-            A2UISwiftUI.Surface(
+            Surface(
               viewModel: surfaceVM,
               catalogImplementation: viewModel.catalogImplementation
             )

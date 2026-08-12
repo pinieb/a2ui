@@ -1,4 +1,4 @@
-// Copyright 2026 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,8 +47,8 @@ final class GalleryActionHandler: ActionHandling, @unchecked Sendable {
       type: .action,
       message: "Action dispatched on surface '\(surfaceID)': \(desc)"
     )
-    Task { @MainActor [weak viewModel] in
-      viewModel?.appendLogEntry(entry)
+    Task { @MainActor [weak self] in
+      self?.viewModel?.appendLogEntry(entry)
     }
   }
 
@@ -64,8 +64,8 @@ final class GalleryActionHandler: ActionHandling, @unchecked Sendable {
       type: .error,
       message: "Surface '\(surfaceID)': \(text)"
     )
-    Task { @MainActor [weak viewModel] in
-      viewModel?.appendLogEntry(entry)
+    Task { @MainActor [weak self] in
+      self?.viewModel?.appendLogEntry(entry)
     }
   }
 }
