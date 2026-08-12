@@ -70,12 +70,11 @@ struct BasicCatalogTests {
       Issue.record("result_text node or text binding not found")
       return
     }
-    #expect(binding.get() == "You typed: ")
+    #expect(binding.value == "You typed: ")
 
     // Now type "Boop" in the text field:
     surface.dataModel.set("/inputValue", value: .string("Boop"))
-    #expect(binding.get() == "You typed: Boop")
-
+    
     // Check after tree rebuilds
     let updatedRoot = surface.rootNode
     guard let updatedChildren = updatedRoot?.properties["children"] as? [Node],
@@ -85,7 +84,7 @@ struct BasicCatalogTests {
       Issue.record("updated result_text node or text binding not found")
       return
     }
-    #expect(updatedBinding.get() == "You typed: Boop")
+    #expect(updatedBinding.value == "You typed: Boop")
   }
 
   @MainActor
@@ -148,8 +147,8 @@ struct BasicCatalogTests {
       return
     }
 
-    #expect(flightNumberBinding.get() == "OS 87")
-    #expect(dateBinding.get() == "Mon, Dec 15")
+    #expect(flightNumberBinding.value == "OS 87")
+    #expect(dateBinding.value == "Mon, Dec 15")
   }
 
   @MainActor
@@ -224,7 +223,7 @@ struct BasicCatalogTests {
       return
     }
 
-    let formattedText = timeTextBinding.get()
+    let formattedText = timeTextBinding.value ?? ""
     #expect(formattedText.contains("Fri, Dec 19"))
     #expect(formattedText.contains(" • "))
     #expect(formattedText.contains(" - "))
@@ -286,13 +285,13 @@ struct BasicCatalogTests {
     guard let row0Children = row0.properties["children"] as? [Node],
       let name0 =
         (row0Children.first(where: { $0.id == "item-name" })?.properties["text"]
-        as? DataBinding<String>)?.get(),
+        as? DataBinding<String>)?.value,
       let qtyLabel0 =
         (row0Children.first(where: { $0.id == "qty-label" })?.properties["text"]
-        as? DataBinding<String>)?.get(),
+        as? DataBinding<String>)?.value,
       let qty0 =
         (row0Children.first(where: { $0.id == "item-qty" })?.properties["text"]
-        as? DataBinding<String>)?.get()
+        as? DataBinding<String>)?.value
     else {
       Issue.record("Row 0 children not found")
       return
@@ -307,10 +306,10 @@ struct BasicCatalogTests {
     guard let row1Children = row1.properties["children"] as? [Node],
       let name1 =
         (row1Children.first(where: { $0.id == "item-name" })?.properties["text"]
-        as? DataBinding<String>)?.get(),
+        as? DataBinding<String>)?.value,
       let qty1 =
         (row1Children.first(where: { $0.id == "item-qty" })?.properties["text"]
-        as? DataBinding<String>)?.get()
+        as? DataBinding<String>)?.value
     else {
       Issue.record("Row 1 children not found")
       return
@@ -324,10 +323,10 @@ struct BasicCatalogTests {
     guard let row2Children = row2.properties["children"] as? [Node],
       let name2 =
         (row2Children.first(where: { $0.id == "item-name" })?.properties["text"]
-        as? DataBinding<String>)?.get(),
+        as? DataBinding<String>)?.value,
       let qty2 =
         (row2Children.first(where: { $0.id == "item-qty" })?.properties["text"]
-        as? DataBinding<String>)?.get()
+        as? DataBinding<String>)?.value
     else {
       Issue.record("Row 2 children not found")
       return
@@ -389,8 +388,8 @@ struct BasicCatalogTests {
       return
     }
     let prevName =
-      (prevIconNode.properties["name"] as? DataBinding<String>)?.get()
-      ?? (prevIconNode.properties["name"] as? String)
+      (prevIconNode.properties["name"] as? DataBinding<String>)?.value
+      ?? (prevIconNode.properties["name"] as? JSONValue)?.stringValue
     #expect(prevName == "skipPrevious")
 
     // Check play-btn-icon (data-bound "/playIcon" -> "pause")
@@ -401,11 +400,18 @@ struct BasicCatalogTests {
       Issue.record("play-btn icon node or binding not found")
       return
     }
-    #expect(playBinding.get() == "pause")
+    #expect(playBinding.value == "pause")
 
     // Live update playIcon in data model:
     surface.dataModel.set("/playIcon", value: .string("play"))
-    #expect(playBinding.get() == "play")
+    let updatedRoot = surface.rootNode
+    let updatedCardChild = updatedRoot?.properties["child"] as? Node
+    let updatedColChildren = updatedCardChild?.properties["children"] as? [Node]
+    let updatedControlsRow = updatedColChildren?.first(where: { $0.id == "controls" })
+    let updatedPlayBtn = (updatedControlsRow?.properties["children"] as? [Node])?.first(where: { $0.id == "play-btn" })
+    let updatedPlayIcon = updatedPlayBtn?.properties["child"] as? Node
+    let updatedPlayBinding = updatedPlayIcon?.properties["name"] as? DataBinding<String>
+    #expect(updatedPlayBinding?.value == "play")
 
     // Check next-btn-icon (literal "skipNext")
     guard let nextBtn = buttons.first(where: { $0.id == "next-btn" }),
@@ -415,8 +421,8 @@ struct BasicCatalogTests {
       return
     }
     let nextName =
-      (nextIconNode.properties["name"] as? DataBinding<String>)?.get()
-      ?? (nextIconNode.properties["name"] as? String)
+      (nextIconNode.properties["name"] as? DataBinding<String>)?.value
+      ?? (nextIconNode.properties["name"] as? JSONValue)?.stringValue
     #expect(nextName == "skipNext")
   }
 
@@ -442,8 +448,8 @@ struct BasicCatalogTests {
     }
 
     let iconName =
-      (root.properties["name"] as? DataBinding<String>)?.get()
-      ?? (root.properties["name"] as? String)
+      (root.properties["name"] as? DataBinding<String>)?.value
+      ?? (root.properties["name"] as? JSONValue)?.stringValue
     #expect(iconName == "svg:M10 20 L30 40")
   }
 }

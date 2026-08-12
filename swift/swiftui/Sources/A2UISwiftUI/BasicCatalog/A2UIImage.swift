@@ -25,11 +25,11 @@ public struct A2UIImage: View {
   }
 
   private var urlString: String {
-    (node.properties["url"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["url"] as? DataBinding<String>)?.value ?? ""
   }
 
   private var imageDescription: String {
-    (node.properties["description"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["description"] as? DataBinding<String>)?.value ?? ""
   }
 
   private var fit: String {

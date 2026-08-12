@@ -126,7 +126,7 @@ struct StressTests {
     let root = vm?.rootNode
     #expect(root?.id == "root")
     if let binding = root?.properties["text"] as? DataBinding<String> {
-      #expect(binding.get() == "Update 99")
+      #expect(binding.value == "Update 99")
     } else {
       Issue.record("Expected DataBinding<String> for text property")
     }

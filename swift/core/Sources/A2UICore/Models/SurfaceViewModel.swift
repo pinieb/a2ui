@@ -17,17 +17,8 @@ import Foundation
 import OrderedJSON
 
 /// The state model for a single UI surface.
-///
-/// Mirrors `SurfaceViewModel` in the core blueprint and `web_core`.
-/// Composes a ``DataModel``, ``SurfaceComponentsModel``, ``Catalog``,
-/// and an optional theme. This is a pure state container — the
-/// ``MessageProcessor`` handles message parsing, validation, and
-/// mutation of these models.
-///
-/// `SurfaceViewModel` also hosts the tree resolution logic (dynamic value
-/// evaluation, action resolution, child list expansion) that will
-/// eventually move to a dedicated Binder/Context layer (Phase 4).
-public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
+@MainActor
+public final class SurfaceViewModel: ObservableObject {
 
   // MARK: - Properties
 
@@ -127,7 +118,7 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
   }
 
   private func setUpSubscriptions() {
-    Publishers.CombineLatest(componentsModel.$components, dataModel.$data)
+    Publishers.CombineLatest(componentsModel.componentsPublisher, dataModel.dataPublisher)
       .sink { [weak self] components, data in
         self?.rebuildTree(components: components, data: data)
       }
@@ -140,10 +131,7 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
   private func rebuildTree(components: [String: ComponentModel], data: JSONValue) {
     let newRoot = resolveNode(id: "root", components: components, data: data)
 
-    // Hopping to Main Thread to update the @Published property safely
-    DispatchQueue.main.async { [weak self] in
-      self?.rootNode = newRoot
-    }
+    self.rootNode = newRoot
   }
 
   // MARK: - Property Classification
@@ -155,6 +143,7 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
     case dynamicValue
     case action
     case childList
+    case child
     case standard
   }
 
@@ -165,6 +154,21 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
     // Extract the last path segment (e.g., "DynamicString" from
     // "...#/$defs/DynamicString") and match exactly to avoid
     // misidentifying types like "DynamicStringList" as "DynamicString".
+    
+    // Handle oneOf/anyOf recursively
+    if let oneOf = schemaJSON["oneOf"]?.arrayValue {
+      for subSchema in oneOf {
+        let t = classifySchema(subSchema)
+        if t != .standard { return t }
+      }
+    }
+    if let anyOf = schemaJSON["anyOf"]?.arrayValue {
+      for subSchema in anyOf {
+        let t = classifySchema(subSchema)
+        if t != .standard { return t }
+      }
+    }
+
     if let ref = schemaJSON["$ref"]?.stringValue {
       let typeName =
         ref
@@ -178,6 +182,8 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
       case "DynamicValue": return .dynamicValue
       case "Action": return .action
       case "ChildList": return .childList
+      case "ComponentId": return .child
+      case "DataBinding": return .dynamicString
       default: break
       }
     }
@@ -314,6 +320,16 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
       return resolveDynamicValueBinding(value, basePath: basePath, data: data)
     case .action:
       return resolveAction(value, basePath: basePath, componentID: componentID, data: data)
+    case .child:
+      guard let childID = value.stringValue else { return nil }
+      return resolveNode(
+        definitionID: childID,
+        instanceID: childID,
+        basePath: basePath,
+        visited: visited,
+        components: components,
+        data: data
+      )
     case .childList:
       return resolveChildList(
         value,
@@ -362,6 +378,8 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
             resolvedArgs[argKey] = evaluateDynamicValue(argVal, basePath: basePath, data: data)
           }
         }
+        resolvedArgs["__data__"] = data
+        if let bp = basePath { resolvedArgs["__basePath__"] = .string(bp) }
         do {
           return try function.evaluate(arguments: resolvedArgs)
         } catch {
@@ -405,18 +423,26 @@ public final class SurfaceViewModel: @unchecked Sendable, ObservableObject {
     basePath: String?,
     data: JSONValue
   ) -> DataBinding<String> {
-    if let dict = value.dictionaryValue, let pathStr = dict["path"]?.stringValue {
-      let absPath = JSONValue.absolutePath(for: pathStr, in: basePath)
-      let resolvedValue = data[absPath]?.stringValue
-      return DataBinding<String>(
-        identity: .path(absPath),
-        value: resolvedValue,
-        set: { [weak self] newValue in
-          self?.dataModel.set(absPath, value: .string(newValue))
-        }
-      )
+    if let dict = value.dictionaryValue {
+      if let pathStr = dict["path"]?.stringValue {
+        let absPath = JSONValue.absolutePath(for: pathStr, in: basePath)
+        let resolvedValue = data[absPath]?.stringValue ?? ""
+        return DataBinding<String>(
+          identity: .path(absPath),
+          value: resolvedValue,
+          set: { [weak self] newValue in
+            self?.dataModel.set(absPath, value: .string(newValue))
+          }
+        )
+      } else if let svgPath = dict["svgPath"]?.stringValue {
+        return DataBinding<String>(
+          identity: .literal(value),
+          value: "svg:\(svgPath)",
+          set: { _ in }
+        )
+      }
     }
-    let resolvedValue = evaluateDynamicValue(value, basePath: basePath, data: data).stringValue
+    let resolvedValue = evaluateDynamicValue(value, basePath: basePath, data: data).stringValue ?? ""
     return DataBinding<String>(
       identity: .literal(value),
       value: resolvedValue,

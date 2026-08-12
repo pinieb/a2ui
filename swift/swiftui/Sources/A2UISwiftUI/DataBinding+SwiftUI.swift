@@ -23,7 +23,7 @@ import SwiftUI
 extension DataBinding {
   /// A SwiftUI `Binding` backed by this `DataBinding`.
   @MainActor
-  public var swiftUIBinding: Binding<Value> {
+  public var swiftUIBinding: Binding<Value?> {
     Binding(
       get: {
         self.value

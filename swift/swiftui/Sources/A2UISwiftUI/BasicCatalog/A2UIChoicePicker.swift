@@ -34,7 +34,7 @@ public struct A2UIChoicePicker: View {
   }
 
   private var labelText: String {
-    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["label"] as? DataBinding<String>)?.value ?? ""
   }
 
   private var variant: String {
@@ -68,7 +68,7 @@ public struct A2UIChoicePicker: View {
   }
 
   private var selectedValues: [String] {
-    (node.properties["value"] as? DataBinding<[String]>)?.get() ?? fallbackSelections
+    (node.properties["value"] as? DataBinding<[String]>)?.value ?? fallbackSelections
   }
 
   private func toggleSelection(_ optionVal: String) {

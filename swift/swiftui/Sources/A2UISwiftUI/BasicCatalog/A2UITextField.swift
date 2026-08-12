@@ -27,7 +27,7 @@ public struct A2UITextField: View {
   }
 
   private var labelText: String {
-    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["label"] as? DataBinding<String>)?.value ?? ""
   }
 
   private var variant: String {
@@ -36,7 +36,7 @@ public struct A2UITextField: View {
 
   private var valueBinding: Binding<String> {
     if let dataBinding = node.properties["value"] as? DataBinding<String> {
-      return dataBinding.swiftUIBinding
+      return dataBinding.stringBinding
     }
     return $fallbackText
   }

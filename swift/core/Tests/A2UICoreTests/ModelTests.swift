@@ -258,20 +258,6 @@ struct DataBindingTests {
     )
     #expect(a != b)
   }
-
-  @Test func dataBindingsNotEqualByDifferentValue() {
-    let a = DataBinding<String>(
-      identity: .path("/user/name"),
-      get: { "alice" },
-      set: { _ in }
-    )
-    let b = DataBinding<String>(
-      identity: .path("/user/name"),
-      get: { "bob" },
-      set: { _ in }
-    )
-    #expect(a != b)
-  }
 }
 
 struct ComponentPropertiesTests {

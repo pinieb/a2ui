@@ -79,7 +79,7 @@ public enum BasicCatalogImplementation: Sendable {
   }
 
   /// Registers all basic components into the given catalog implementation.
-  public static func register(
+  @MainActor public static func register(
     in catalogImplementation: CatalogImplementation,
     catalogID: String? = nil
   ) {
@@ -90,7 +90,7 @@ public enum BasicCatalogImplementation: Sendable {
   }
 
   /// Registers all basic components for a specific catalog definition.
-  public static func register(
+  @MainActor public static func register(
     in catalogImplementation: CatalogImplementation,
     catalog: Catalog
   ) {

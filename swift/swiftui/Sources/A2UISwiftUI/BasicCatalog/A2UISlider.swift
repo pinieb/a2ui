@@ -27,7 +27,7 @@ public struct A2UISlider: View {
   }
 
   private var labelText: String {
-    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["label"] as? DataBinding<String>)?.value ?? ""
   }
 
   private var minValue: Double {
@@ -40,7 +40,7 @@ public struct A2UISlider: View {
 
   private var sliderBinding: Binding<Double> {
     if let dataBinding = node.properties["value"] as? DataBinding<Double> {
-      return dataBinding.swiftUIBinding
+      return dataBinding.doubleBinding
     }
     return $fallbackValue
   }

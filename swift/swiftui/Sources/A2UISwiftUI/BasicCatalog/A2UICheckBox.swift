@@ -27,12 +27,12 @@ public struct A2UICheckBox: View {
   }
 
   private var labelText: String {
-    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["label"] as? DataBinding<String>)?.value ?? ""
   }
 
   private var boolBinding: Binding<Bool> {
     if let dataBinding = node.properties["value"] as? DataBinding<Bool> {
-      return dataBinding.swiftUIBinding
+      return dataBinding.boolBinding
     }
     return $fallbackBool
   }

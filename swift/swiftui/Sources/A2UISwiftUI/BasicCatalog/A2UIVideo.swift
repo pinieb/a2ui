@@ -26,7 +26,7 @@ public struct A2UIVideo: View {
   }
 
   private var urlString: String {
-    (node.properties["url"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["url"] as? DataBinding<String>)?.value ?? ""
   }
 
   public var body: some View {

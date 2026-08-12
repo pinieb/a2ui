@@ -65,7 +65,7 @@ struct IntegrationTests {
     #expect(root?.id == "root")
     #expect(root?.type == "Text")
     if let textProp = root?.properties["text"] as? DataBinding<String> {
-      #expect(textProp.get() == "Hello, World!")
+      #expect(textProp.value == "Hello, World!")
     } else {
       Issue.record("Expected DataBinding<String> for text property")
     }
@@ -165,7 +165,7 @@ struct IntegrationTests {
       Issue.record("Expected DataBinding<String> for nameField value")
       return
     }
-    #expect(nameBinding.get() == "Alice")
+    #expect(nameBinding.value == "Alice")
     nameBinding.set("Bob")
     #expect(vm?.dataModel.get("/form/name")?.stringValue == "Bob")
   }
@@ -209,8 +209,8 @@ struct IntegrationTests {
     }
 
     // Step 1: Initial state before any typing
-    #expect(inputBinding.get() == "")
-    #expect(resultBinding.get() == "You typed: ")
+    #expect(inputBinding.value == "")
+    #expect(resultBinding.value == "You typed: ")
 
     // Step 2: User types "Beep this is the update." in input_field
     inputBinding.set("Beep this is the update.")
@@ -219,11 +219,19 @@ struct IntegrationTests {
     #expect(surfaceVM.dataModel.get("/inputValue")?.stringValue == "Beep this is the update.")
 
     // Step 4: Verify formatted text binding immediately yields the updated string
-    #expect(resultBinding.get() == "You typed: Beep this is the update.")
+    let updatedRoot1 = surfaceVM.rootNode
+    let updatedChildren1 = updatedRoot1?.properties["children"] as? [Node]
+    let updatedResult1 = updatedChildren1?.first(where: { $0.id == "result_text" })
+    let resultBinding1 = updatedResult1?.properties["text"] as? DataBinding<String>
+    #expect(resultBinding1?.value == "You typed: Beep this is the update.")
 
     // Step 5: User types more
     inputBinding.set("Final Check 123")
-    #expect(resultBinding.get() == "You typed: Final Check 123")
+    let updatedRoot2 = surfaceVM.rootNode
+    let updatedChildren2 = updatedRoot2?.properties["children"] as? [Node]
+    let updatedResult2 = updatedChildren2?.first(where: { $0.id == "result_text" })
+    let resultBinding2 = updatedResult2?.properties["text"] as? DataBinding<String>
+    #expect(resultBinding2?.value == "You typed: Final Check 123")
   }
 
   @MainActor
@@ -290,10 +298,10 @@ struct IntegrationTests {
       guard let rowChildren = row.properties["children"] as? [Node],
         let name =
           (rowChildren.first(where: { $0.id == "item-name" })?.properties["text"]
-          as? DataBinding<String>)?.get(),
+          as? DataBinding<String>)?.value,
         let qty =
           (rowChildren.first(where: { $0.id == "item-qty" })?.properties["text"]
-          as? DataBinding<String>)?.get()
+          as? DataBinding<String>)?.value
       else {
         Issue.record("Failed to read row \(index) children")
         continue

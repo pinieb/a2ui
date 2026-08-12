@@ -25,7 +25,7 @@ public struct A2UIText: View {
   }
 
   private var textContent: String {
-    (node.properties["text"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["text"] as? DataBinding<String>)?.value ?? ""
   }
 
   private var variant: String {

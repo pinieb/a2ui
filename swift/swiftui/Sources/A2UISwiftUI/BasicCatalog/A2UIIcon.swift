@@ -26,14 +26,14 @@ public struct A2UIIcon: View {
 
   private var iconName: String {
     if let binding = node.properties["name"] as? DataBinding<String> {
-      return binding.get()
+      return binding.value ?? ""
     }
     if let str = node.properties["name"] as? String {
       return str
     }
     if let json = node.properties["name"] as? JSONValue,
       let svgPath = json["svgPath"] as? DataBinding<String> {
-      return svgPath.get()
+      return svgPath.value ?? ""
     }
     return ""
   }

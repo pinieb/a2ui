@@ -29,11 +29,11 @@ public struct A2UIAudioPlayer: View {
   }
 
   private var urlString: String {
-    (node.properties["url"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["url"] as? DataBinding<String>)?.value ?? ""
   }
 
   private var descriptionText: String {
-    (node.properties["description"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["description"] as? DataBinding<String>)?.value ?? ""
   }
 
   public var body: some View {

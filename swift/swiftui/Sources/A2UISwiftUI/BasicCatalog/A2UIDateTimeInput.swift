@@ -27,7 +27,7 @@ public struct A2UIDateTimeInput: View {
   }
 
   private var labelText: String {
-    (node.properties["label"] as? DataBinding<String>)?.get() ?? ""
+    (node.properties["label"] as? DataBinding<String>)?.value ?? ""
   }
 
   private var enableDate: Bool {
@@ -52,8 +52,8 @@ public struct A2UIDateTimeInput: View {
     Binding(
       get: {
         if let dataBinding = node.properties["value"] as? DataBinding<String> {
-          let dateStr = dataBinding.get()
-          if let parsed = parseISO8601(dateStr) {
+          let dateStr = dataBinding.value
+          if let dateStr, let parsed = parseISO8601(dateStr) {
             return parsed
           }
         }
