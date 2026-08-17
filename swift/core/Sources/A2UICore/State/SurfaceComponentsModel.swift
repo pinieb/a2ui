@@ -24,11 +24,24 @@ import Foundation
 public final class SurfaceComponentsModel: @unchecked Sendable, ObservableObject {
 
   private let lock = NSRecursiveLock()
+  public let objectWillChange = ObservableObjectPublisher()
 
-  @Published public private(set) var components: [String: ComponentModel] = [:]
+  public private(set) var components: [String: ComponentModel] = [:] {
+    willSet {
+      objectWillChange.send()
+    }
+    didSet {
+      componentsDidChange.send(components)
+    }
+  }
+
+  /// Synchronous publisher that emits after components have been modified.
+  public let componentsDidChange: CurrentValueSubject<[String: ComponentModel], Never>
 
   /// Creates an empty components model.
-  public init() {}
+  public init() {
+    self.componentsDidChange = CurrentValueSubject([:])
+  }
 
   /// Retrieves the component with the given ID.
   ///
