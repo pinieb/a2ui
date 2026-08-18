@@ -14,6 +14,7 @@
 
 import A2UICore
 import A2UISwiftUI
+import BasicCatalogSwiftUI
 import SwiftUI
 
 /// Displays the active A2UI surface inside a framed viewport along with interactive stream stepper controls.
@@ -38,9 +39,12 @@ public struct SurfacePreviewPane: View {
       ScrollView {
         VStack(spacing: 16) {
           if let surfaceVM = viewModel.activeSurfaceViewModel {
-            A2UISwiftUI.Surface(viewModel: surfaceVM)
-              .frame(minWidth: 100, minHeight: 100)
-              .padding()
+            A2UISwiftUI.Surface(
+              viewModel: surfaceVM,
+              catalogImplementation: Self.makeCatalogImplementation()
+            )
+            .frame(minWidth: 100, minHeight: 100)
+            .padding()
 
             if surfaceVM.rootNode == nil {
               VStack(spacing: 8) {
@@ -129,5 +133,22 @@ public struct SurfacePreviewPane: View {
             || viewModel.currentStepIndex >= (viewModel.selectedSample?.rawMessages.count ?? 0))
       }
     }
+
+  }
+
+  private static func makeCatalogImplementation() -> CatalogImplementation {
+    let impl = CatalogImplementation()
+    let components = BasicCatalogImplementation.allComponents
+    impl.register(catalogID: nil, components: components)
+    impl.register(
+      catalogID: "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+      components: components)
+    impl.register(
+      catalogID: "https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json",
+      components: components)
+    impl.register(
+      catalogID: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      components: components)
+    return impl
   }
 }

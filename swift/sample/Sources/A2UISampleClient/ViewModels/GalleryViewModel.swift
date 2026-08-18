@@ -13,6 +13,9 @@
 // limitations under the License.
 
 import A2UICore
+import A2UISwiftUI
+import BasicCatalog
+import BasicCatalogSwiftUI
 import Combine
 import Foundation
 
@@ -87,13 +90,29 @@ public final class GalleryViewModel: @unchecked Sendable, ObservableObject {
   @Published public private(set) var logEntries: [DiagnosticLogEntry] = []
   @Published public private(set) var dataModelString: String = "{}"
 
+  public let catalogImplementation: CatalogImplementation
   private var processor: MessageProcessor
   private var surfaceSubscription: AnyCancellable?
   private let handler = GalleryActionHandler()
 
   public init() {
+    self.catalogImplementation = {
+      let impl = CatalogImplementation()
+      let components = BasicCatalogImplementation.allComponents
+      impl.register(catalogID: nil, components: components)
+      impl.register(
+        catalogID: "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+        components: components)
+      impl.register(
+        catalogID: "https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json",
+        components: components)
+      impl.register(
+        catalogID: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+        components: components)
+      return impl
+    }()
     self.processor = MessageProcessor(
-      catalogs: EmptyBasicCatalog.allCatalogs,
+      catalogs: BasicCatalog.allCatalogs,
       actionHandler: self.handler
     )
     self.handler.viewModel = self
@@ -115,7 +134,7 @@ public final class GalleryViewModel: @unchecked Sendable, ObservableObject {
     surfaceSubscription = nil
 
     self.processor = MessageProcessor(
-      catalogs: EmptyBasicCatalog.allCatalogs,
+      catalogs: BasicCatalog.allCatalogs,
       actionHandler: self.handler
     )
     self.currentStepIndex = 0
